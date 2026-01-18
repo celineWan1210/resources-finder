@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:intl/intl.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -27,6 +28,8 @@ class FoodBankPlace {
   int? userRatingsTotal;
   List<String>? photos;
   bool isOpen;
+  bool isContribution;
+  Map<String, dynamic>? contributionData;
 
   FoodBankPlace({
     required this.placeId,
@@ -41,6 +44,8 @@ class FoodBankPlace {
     this.userRatingsTotal,
     this.photos,
     this.isOpen = true,
+    this.isContribution = false,
+    this.contributionData,
   });
 }
 
@@ -51,9 +56,10 @@ class _MapScreenState extends State<MapScreen> {
   final String googleApiKey = dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
   bool _isLoading = true;
   String _statusMessage = 'Loading...';
-  bool _isMapView = true; // Toggle between map and list view
+  bool _isMapView = true;
   List<FoodBankPlace> _foodBanks = [];
   Set<String> _favoriteIds = {};
+  bool _showContributionsOnly = false;
 
   final List<String> keywords = [
     'food bank',
@@ -70,7 +76,6 @@ class _MapScreenState extends State<MapScreen> {
     _initializeMap();
   }
 
-  // Load favorites from SharedPreferences
   Future<void> _loadFavorites() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -78,13 +83,11 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
-  // Save favorites to SharedPreferences
   Future<void> _saveFavorites() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('favorites', _favoriteIds.toList());
   }
 
-  // Toggle favorite status
   Future<void> _toggleFavorite(String placeId) async {
     setState(() {
       if (_favoriteIds.contains(placeId)) {
@@ -100,15 +103,56 @@ class _MapScreenState extends State<MapScreen> {
     try {
       setState(() {
         _currentLocation = const LatLng(3.1390, 101.6869);
-        _statusMessage = 'Searching for food banks in KL...';
+        _statusMessage = 'Loading food banks and contributions...';
       });
       await _searchFoodBanks(_currentLocation.latitude, _currentLocation.longitude);
+      await _loadCommunityContributions();
+      _updateMarkersAndList();
     } catch (e) {
       setState(() {
         _statusMessage = 'Error: $e';
         _isLoading = false;
       });
       print('Error initializing map: $e');
+    }
+  }
+
+  Future<void> _loadCommunityContributions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? contributionsJson = prefs.getString('global_contributions');
+    
+    if (contributionsJson != null) {
+      final List<dynamic> decoded = json.decode(contributionsJson);
+      final contributions = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+      
+      // Add active contributions to food banks list
+      for (var contribution in contributions) {
+        if (contribution['status'] == 'active') {
+          final endDate = DateTime.parse(contribution['endDate']);
+          if (endDate.isAfter(DateTime.now())) {
+            double distance = _calculateDistance(
+              _currentLocation.latitude,
+              _currentLocation.longitude,
+              contribution['lat'],
+              contribution['lng'],
+            );
+            
+            final contributionPlace = FoodBankPlace(
+              placeId: 'contrib_${contribution['id']}',
+              name: '${contribution['type']} Contribution',
+              address: contribution['location'],
+              lat: contribution['lat'],
+              lng: contribution['lng'],
+              distance: distance,
+              isOpen: true,
+              isContribution: true,
+              contributionData: contribution,
+            );
+            
+            _foodBanks.add(contributionPlace);
+          }
+        }
+      }
     }
   }
 
@@ -124,8 +168,9 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  // Fetch place details including hours, phone, rating
   Future<void> _fetchPlaceDetails(FoodBankPlace place) async {
+    if (place.isContribution) return; // Skip API call for contributions
+
     final url =
         'https://maps.googleapis.com/maps/api/place/details/json'
         '?place_id=${place.placeId}'
@@ -170,8 +215,6 @@ class _MapScreenState extends State<MapScreen> {
     List<String> keywordsLower = keywords.map((k) => k.toLowerCase()).toList();
 
     for (String keyword in keywords) {
-      print('\nSearching for: $keyword');
-
       final url =
           'https://maps.googleapis.com/maps/api/place/nearbysearch/json'
           '?location=$lat,$lng'
@@ -187,7 +230,6 @@ class _MapScreenState extends State<MapScreen> {
           final data = json.decode(response.body);
           
           if (data['status'] == 'REQUEST_DENIED') {
-            print('API Error: ${data['error_message']}');
             setState(() {
               _statusMessage = 'API Error: ${data['error_message']}';
               _isLoading = false;
@@ -196,11 +238,6 @@ class _MapScreenState extends State<MapScreen> {
           }
 
           final results = data['results'] ?? [];
-
-          if (results.isEmpty) {
-            print("No results found for '$keyword'");
-            continue;
-          }
 
           for (var place in results) {
             String name = (place['name'] ?? '').toString().toLowerCase();
@@ -219,10 +256,6 @@ class _MapScreenState extends State<MapScreen> {
       }
     }
 
-    print('\nTotal unique food-related places found: ${allPlaces.length}');
-
-    // Create FoodBankPlace objects
-    _foodBanks.clear();
     for (var place in allPlaces) {
       double placeLat = place['geometry']['location']['lat'];
       double placeLng = place['geometry']['location']['lng'];
@@ -236,39 +269,48 @@ class _MapScreenState extends State<MapScreen> {
         lng: placeLng,
         distance: distance,
         isOpen: place['opening_hours']?['open_now'] ?? true,
+        isContribution: false,
       );
 
       _foodBanks.add(foodBank);
+    }
+  }
 
-      // Create marker
+  void _updateMarkersAndList() {
+    _markers.clear();
+    
+    final displayList = _showContributionsOnly 
+        ? _foodBanks.where((f) => f.isContribution).toList()
+        : _foodBanks;
+    
+    for (var place in displayList) {
       final marker = Marker(
-        markerId: MarkerId(place['place_id']),
-        position: LatLng(placeLat, placeLng),
+        markerId: MarkerId(place.placeId),
+        position: LatLng(place.lat, place.lng),
         infoWindow: InfoWindow(
-          title: place['name'],
-          snippet: _formatDistance(distance),
+          title: place.name,
+          snippet: _formatDistance(place.distance),
         ),
         icon: BitmapDescriptor.defaultMarkerWithHue(
-          _favoriteIds.contains(place['place_id']) 
-              ? BitmapDescriptor.hueRed 
-              : BitmapDescriptor.hueOrange,
+          place.isContribution 
+              ? BitmapDescriptor.hueViolet
+              : _favoriteIds.contains(place.placeId) 
+                  ? BitmapDescriptor.hueRed 
+                  : BitmapDescriptor.hueOrange,
         ),
-        onTap: () => _showPlaceDetailsDialog(foodBank),
+        onTap: () => _showPlaceDetailsDialog(place),
       );
       
       _markers.add(marker);
     }
 
-    // Sort by distance
     _foodBanks.sort((a, b) => a.distance.compareTo(b.distance));
 
     setState(() {
       _isLoading = false;
-      if (allPlaces.isEmpty) {
-        _statusMessage = 'No food banks found within 10km of KL.';
-      } else {
-        _statusMessage = 'Found ${allPlaces.length} food bank(s) in KL area';
-      }
+      final contributionCount = _foodBanks.where((f) => f.isContribution).length;
+      final foodBankCount = _foodBanks.length - contributionCount;
+      _statusMessage = 'Found $foodBankCount food bank(s) and $contributionCount contribution(s)';
     });
 
     if (_markers.isNotEmpty && mapController != null && _isMapView) {
@@ -277,20 +319,21 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _showPlaceDetailsDialog(FoodBankPlace place) async {
-    // Show loading dialog first
+    if (place.isContribution) {
+      _showContributionDetailsDialog(place);
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
-    // Fetch details
     await _fetchPlaceDetails(place);
     
-    // Close loading dialog
     if (mounted) Navigator.pop(context);
 
-    // Show details
     if (mounted) {
       showModalBottomSheet(
         context: context,
@@ -307,7 +350,6 @@ class _MapScreenState extends State<MapScreen> {
                 child: ListView(
                   controller: scrollController,
                   children: [
-                    // Header with favorite button
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -339,7 +381,6 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                     const SizedBox(height: 10),
 
-                    // Status badge
                     Row(
                       children: [
                         Container(
@@ -375,7 +416,6 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                     const SizedBox(height: 15),
 
-                    // Photos
                     if (place.photos != null && place.photos!.isNotEmpty) ...[
                       SizedBox(
                         height: 150,
@@ -409,23 +449,11 @@ class _MapScreenState extends State<MapScreen> {
                       const SizedBox(height: 15),
                     ],
 
-                    // Address
-                    _buildInfoRow(
-                      Icons.location_on,
-                      'Address',
-                      place.address,
-                    ),
+                    _buildInfoRow(Icons.location_on, 'Address', place.address),
+                    const SizedBox(height: 10),
+                    _buildInfoRow(Icons.directions_walk, 'Distance', _formatDistance(place.distance)),
                     const SizedBox(height: 10),
 
-                    // Distance
-                    _buildInfoRow(
-                      Icons.directions_walk,
-                      'Distance',
-                      _formatDistance(place.distance),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Phone
                     if (place.phoneNumber != null) ...[
                       _buildInfoRow(
                         Icons.phone,
@@ -436,7 +464,6 @@ class _MapScreenState extends State<MapScreen> {
                       const SizedBox(height: 10),
                     ],
 
-                    // Opening Hours
                     if (place.openingHours != null) ...[
                       const Divider(),
                       const SizedBox(height: 10),
@@ -461,7 +488,6 @@ class _MapScreenState extends State<MapScreen> {
                       const SizedBox(height: 15),
                     ],
 
-                    // Action Buttons
                     const Divider(),
                     const SizedBox(height: 10),
                     Row(
@@ -521,6 +547,232 @@ class _MapScreenState extends State<MapScreen> {
         },
       );
     }
+  }
+
+  void _showContributionDetailsDialog(FoodBankPlace place) {
+    final contribution = place.contributionData!;
+    final startDate = DateTime.parse(contribution['startDate']);
+    final endDate = DateTime.parse(contribution['endDate']);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Container(
+              padding: const EdgeInsets.all(20),
+              child: ListView(
+                controller: scrollController,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.purple[100],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          contribution['type'] == 'Food' 
+                              ? Icons.restaurant 
+                              : Icons.home,
+                          color: Colors.purple[700],
+                          size: 32,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Community Contribution',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            Text(
+                              contribution['type'],
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text(
+                          'ACTIVE',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.purple[50],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          contribution['description'],
+                          style: const TextStyle(
+                            fontSize: 16,
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  _buildInfoRow(
+                    Icons.numbers,
+                    'Quantity',
+                    '${contribution['quantity']} ${contribution['type'] == 'Food' ? 'meals/packages' : 'people'}',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInfoRow(
+                    Icons.location_on,
+                    'Location',
+                    contribution['location'],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInfoRow(
+                    Icons.directions_walk,
+                    'Distance',
+                    _formatDistance(place.distance),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInfoRow(
+                    Icons.calendar_today,
+                    'Available',
+                    '${DateFormat('MMM dd').format(startDate)} - ${DateFormat('MMM dd, yyyy').format(endDate)}',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInfoRow(
+                    Icons.access_time,
+                    'Hours',
+                    '${contribution['startTime']} - ${contribution['endTime']}',
+                  ),
+
+                  if (contribution['contact'] != null && 
+                      contribution['contact'].toString().isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    _buildInfoRow(
+                      Icons.phone,
+                      'Contact',
+                      contribution['contact'],
+                      onTap: () => _launchPhone(contribution['contact']),
+                    ),
+                  ],
+
+                  if ((contribution['tags'] as List).isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Categories',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: (contribution['tags'] as List).map((tag) {
+                        return Chip(
+                          label: Text(tag, style: const TextStyle(fontSize: 12)),
+                          backgroundColor: Colors.purple[50],
+                          padding: const EdgeInsets.all(4),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+
+                  const SizedBox(height: 20),
+                  const Divider(),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            if (_isMapView) {
+                              mapController?.animateCamera(
+                                CameraUpdate.newLatLngZoom(
+                                  LatLng(place.lat, place.lng),
+                                  16,
+                                ),
+                              );
+                              Navigator.pop(context);
+                            } else {
+                              setState(() {
+                                _isMapView = true;
+                              });
+                              Navigator.pop(context);
+                              Future.delayed(const Duration(milliseconds: 500), () {
+                                mapController?.animateCamera(
+                                  CameraUpdate.newLatLngZoom(
+                                    LatLng(place.lat, place.lng),
+                                    16,
+                                  ),
+                                );
+                              });
+                            }
+                          },
+                          icon: const Icon(Icons.map),
+                          label: const Text('Show on Map'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.all(15),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _openDirections(place.lat, place.lng),
+                          icon: const Icon(Icons.directions),
+                          label: const Text('Directions'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.all(15),
+                            backgroundColor: Colors.blue,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Widget _buildInfoRow(IconData icon, String label, String value, {VoidCallback? onTap}) {
@@ -600,9 +852,12 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  // List View Widget
   Widget _buildListView() {
-    if (_foodBanks.isEmpty) {
+    final displayList = _showContributionsOnly 
+        ? _foodBanks.where((f) => f.isContribution).toList()
+        : _foodBanks;
+
+    if (displayList.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -610,7 +865,9 @@ class _MapScreenState extends State<MapScreen> {
             const Icon(Icons.search_off, size: 64, color: Colors.grey),
             const SizedBox(height: 16),
             Text(
-              _statusMessage,
+              _showContributionsOnly 
+                  ? 'No community contributions yet' 
+                  : _statusMessage,
               style: const TextStyle(fontSize: 18, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
@@ -620,10 +877,10 @@ class _MapScreenState extends State<MapScreen> {
     }
 
     return ListView.builder(
-      itemCount: _foodBanks.length,
+      itemCount: displayList.length,
       padding: const EdgeInsets.all(10),
       itemBuilder: (context, index) {
-        final place = _foodBanks[index];
+        final place = displayList[index];
         final isFavorite = _favoriteIds.contains(place.placeId);
 
         return Card(
@@ -633,9 +890,13 @@ class _MapScreenState extends State<MapScreen> {
             contentPadding: const EdgeInsets.all(15),
             leading: CircleAvatar(
               radius: 25,
-              backgroundColor: place.isOpen ? Colors.green : Colors.grey,
+              backgroundColor: place.isContribution 
+                  ? Colors.purple 
+                  : place.isOpen ? Colors.green : Colors.grey,
               child: Icon(
-                isFavorite ? Icons.favorite : Icons.restaurant,
+                place.isContribution 
+                    ? Icons.volunteer_activism
+                    : isFavorite ? Icons.favorite : Icons.restaurant,
                 color: Colors.white,
               ),
             ),
@@ -654,7 +915,7 @@ class _MapScreenState extends State<MapScreen> {
                 const SizedBox(height: 5),
                 Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.directions_walk,
                       size: 16,
                       color: Colors.blue,
@@ -674,11 +935,15 @@ class _MapScreenState extends State<MapScreen> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: place.isOpen ? Colors.green : Colors.red,
+                        color: place.isContribution 
+                            ? Colors.purple 
+                            : place.isOpen ? Colors.green : Colors.red,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        place.isOpen ? 'Open' : 'Closed',
+                        place.isContribution 
+                            ? 'Contribution' 
+                            : place.isOpen ? 'Open' : 'Closed',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 12,
@@ -690,15 +955,17 @@ class _MapScreenState extends State<MapScreen> {
                 ),
               ],
             ),
-            trailing: IconButton(
-              icon: Icon(
-                isFavorite ? Icons.favorite : Icons.favorite_border,
-                color: Colors.red,
-              ),
-              onPressed: () {
-                _toggleFavorite(place.placeId);
-              },
-            ),
+            trailing: place.isContribution 
+                ? const Icon(Icons.volunteer_activism, color: Colors.purple)
+                : IconButton(
+                    icon: Icon(
+                      isFavorite ? Icons.favorite : Icons.favorite_border,
+                      color: Colors.red,
+                    ),
+                    onPressed: () {
+                      _toggleFavorite(place.placeId);
+                    },
+                  ),
             onTap: () => _showPlaceDetailsDialog(place),
           ),
         );
@@ -712,7 +979,6 @@ class _MapScreenState extends State<MapScreen> {
       appBar: AppBar(
         title: Text(_isMapView ? "Map View" : "List View"),
         actions: [
-          // Toggle View Button
           IconButton(
             icon: Icon(_isMapView ? Icons.list : Icons.map),
             tooltip: _isMapView ? 'List View' : 'Map View',
@@ -722,25 +988,57 @@ class _MapScreenState extends State<MapScreen> {
               });
             },
           ),
-          // Favorites Filter
-          IconButton(
+          PopupMenuButton<String>(
             icon: const Icon(Icons.filter_list),
-            tooltip: 'Filter Favorites',
-            onPressed: () {
+            tooltip: 'Filter',
+            onSelected: (value) {
               setState(() {
-                if (_foodBanks.any((p) => !_favoriteIds.contains(p.placeId))) {
-                  // Show only favorites
-                  _foodBanks = _foodBanks
-                      .where((p) => _favoriteIds.contains(p.placeId))
-                      .toList();
-                } else {
-                  // Reset - reload all
-                  _initializeMap();
+                if (value == 'contributions') {
+                  _showContributionsOnly = !_showContributionsOnly;
+                  _updateMarkersAndList();
+                } else if (value == 'favorites') {
+                  if (_foodBanks.any((p) => !_favoriteIds.contains(p.placeId))) {
+                    _foodBanks = _foodBanks
+                        .where((p) => _favoriteIds.contains(p.placeId))
+                        .toList();
+                    _updateMarkersAndList();
+                  } else {
+                    _markers.clear();
+                    _foodBanks.clear();
+                    _isLoading = true;
+                    _initializeMap();
+                  }
                 }
               });
             },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'contributions',
+                child: Row(
+                  children: [
+                    Icon(
+                      _showContributionsOnly 
+                          ? Icons.check_box 
+                          : Icons.check_box_outline_blank,
+                      color: Colors.purple,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text('Show Contributions Only'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'favorites',
+                child: Row(
+                  children: [
+                    Icon(Icons.favorite, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Filter Favorites'),
+                  ],
+                ),
+              ),
+            ],
           ),
-          // Refresh Button
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
@@ -749,6 +1047,7 @@ class _MapScreenState extends State<MapScreen> {
                 _foodBanks.clear();
                 _isLoading = true;
                 _statusMessage = 'Refreshing...';
+                _showContributionsOnly = false;
               });
               _initializeMap();
             },
@@ -757,7 +1056,6 @@ class _MapScreenState extends State<MapScreen> {
       ),
       body: Stack(
         children: [
-          // Map or List View
           _isMapView
               ? GoogleMap(
                   initialCameraPosition: CameraPosition(
@@ -773,7 +1071,6 @@ class _MapScreenState extends State<MapScreen> {
                 )
               : _buildListView(),
 
-          // Loading Indicator
           if (_isLoading)
             Container(
               color: Colors.black54,
@@ -782,7 +1079,6 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
 
-          // Status Message (Map View Only)
           if (!_isLoading && _isMapView) ...[
             if (_markers.isEmpty)
               Positioned(
@@ -829,13 +1125,15 @@ class _MapScreenState extends State<MapScreen> {
                           size: 20,
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          _statusMessage,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                        Expanded(
+                          child: Text(
+                            _statusMessage,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ],
@@ -843,6 +1141,50 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                 ),
               ),
+            // Legend
+            Positioned(
+              bottom: 20,
+              left: 10,
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Legend:',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: const [
+                          Icon(Icons.location_on, color: Colors.orange, size: 20),
+                          SizedBox(width: 8),
+                          Text('Food Banks', style: TextStyle(fontSize: 12)),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: const [
+                          Icon(Icons.location_on, color: Colors.purple, size: 20),
+                          SizedBox(width: 8),
+                          Text('Contributions', style: TextStyle(fontSize: 12)),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: const [
+                          Icon(Icons.location_on, color: Colors.red, size: 20),
+                          SizedBox(width: 8),
+                          Text('Favorites', style: TextStyle(fontSize: 12)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
         ],
       ),
