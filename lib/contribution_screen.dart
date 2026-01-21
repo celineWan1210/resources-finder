@@ -260,9 +260,28 @@ class _ContributionScreenState extends State<ContributionScreen> {
     }
 
     // Combine selected categories into a single type for map filtering
-    String contributionType = _selectedCategories.length == 1
-        ? _selectedCategories.first
-        : 'community';
+    // Combine selected categories into a single type for filtering (Food / Shelter / Community)
+    String contributionType;
+
+    if (_selectedCategories.length == 1) {
+      if (_selectedCategories.contains('food')) {
+        contributionType = 'food';        // Food only
+      } else if (_selectedCategories.contains('shelter')) {
+        contributionType = 'shelter';     // Shelter only
+      } else {
+        contributionType = 'community';  // Any other single category
+      }
+    } else {
+      // Multiple categories selected
+      if (_selectedCategories.contains('food') &&
+          _selectedCategories.contains('shelter') &&
+          _selectedCategories.length == 2) {
+        contributionType = 'community';  // Food + Shelter
+      } else {
+        contributionType = 'community';  // Any other mix
+      }
+    }
+
 
     final contribution = {
       'id': DateTime.now().millisecondsSinceEpoch.toString(),

@@ -132,8 +132,10 @@ class _MapScreenState extends State<MapScreen> {
           final endDate = DateTime.parse(contribution['endDate'] as String);
           
           // Only add if it's a Food or Both type (filter out Shelter-only)
-          if (endDate.isAfter(DateTime.now()) && 
-              (contribution['type'] == 'Food' || contribution['type'] == 'Both')) {
+          final type = (contribution['type'] ?? '').toString().toLowerCase();
+
+          if (endDate.isAfter(DateTime.now()) &&
+              (type == 'food' || type == 'community')) {
             double distance = _calculateDistance(
               _currentLocation.latitude,
               _currentLocation.longitude,
