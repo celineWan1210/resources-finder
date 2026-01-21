@@ -117,38 +117,41 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  Future<void> _loadCommunityContributions() async {
+  Future _loadCommunityContributions() async {
     final prefs = await SharedPreferences.getInstance();
     final String? contributionsJson = prefs.getString('global_contributions');
     
     if (contributionsJson != null) {
-      final List<dynamic> decoded = json.decode(contributionsJson);
-      final contributions = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+      final List decoded = json.decode(contributionsJson);
+      final contributions = decoded
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
       
-      // Add active contributions to food banks list
       for (var contribution in contributions) {
         if (contribution['status'] == 'active') {
-          final endDate = DateTime.parse(contribution['endDate']);
-          if (endDate.isAfter(DateTime.now())) {
+          final endDate = DateTime.parse(contribution['endDate'] as String);
+          
+          // Only add if it's a Food or Both type (filter out Shelter-only)
+          if (endDate.isAfter(DateTime.now()) && 
+              (contribution['type'] == 'Food' || contribution['type'] == 'Both')) {
             double distance = _calculateDistance(
               _currentLocation.latitude,
               _currentLocation.longitude,
-              contribution['lat'],
-              contribution['lng'],
+              contribution['lat'] as double,
+              contribution['lng'] as double,
             );
             
             final contributionPlace = FoodBankPlace(
               placeId: 'contrib_${contribution['id']}',
               name: '${contribution['type']} Contribution',
-              address: contribution['location'],
-              lat: contribution['lat'],
-              lng: contribution['lng'],
+              address: contribution['location'] as String,
+              lat: contribution['lat'] as double,
+              lng: contribution['lng'] as double,
               distance: distance,
               isOpen: true,
               isContribution: true,
               contributionData: contribution,
             );
-            
             _foodBanks.add(contributionPlace);
           }
         }
