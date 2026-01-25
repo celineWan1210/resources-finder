@@ -163,7 +163,10 @@ class LoginScreen extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () => continueAsGuest(context),
+                      onPressed: () {
+                        // Just navigate to home without login
+                        Navigator.pushReplacementNamed(context, '/home');
+                      },
                       icon: const Icon(Icons.person_outline),
                       label: const Text(
                         'Continue as Guest',
