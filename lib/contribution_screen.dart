@@ -171,15 +171,14 @@ class _ContributionScreenState extends State<ContributionScreen> {
       globalContributions = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
     }
     
+    // Remove all my contributions first (both active and completed)
+    final myIds = _myContributions.map((c) => c['id']).toSet();
+    globalContributions.removeWhere((c) => myIds.contains(c['id']));
+    
+    // Add back only active ones
     for (var contribution in _myContributions) {
       if (contribution['status'] == 'active') {
-        bool exists = globalContributions.any((c) => c['id'] == contribution['id']);
-        if (!exists) {
-          globalContributions.add(contribution);
-        } else {
-          int index = globalContributions.indexWhere((c) => c['id'] == contribution['id']);
-          globalContributions[index] = contribution;
-        }
+        globalContributions.add(contribution);
       }
     }
     
@@ -252,9 +251,11 @@ class _ContributionScreenState extends State<ContributionScreen> {
       });
     }
   }
+  
 
-  void _submitContribution() async {  // Add async here
-    if (_useCurrentLocation && _currentLocation == null) {
+  void _submitContribution() async {
+    // Refresh location if using current location
+    if (_useCurrentLocation) {
       await _loadCurrentLocation();
     }
 
@@ -320,15 +321,18 @@ class _ContributionScreenState extends State<ContributionScreen> {
     
 
     try {
-      // Save to Firestore FIRST
-      await _firestoreService.addContribution(contribution);
+      // Save to Firestore FIRST and get the document ID
+      final firestoreId = await _firestoreService.addContribution(contribution);
+
+      // ADD THE FIRESTORE ID to the contribution object
+      contribution['firestoreId'] = firestoreId;
       
-      // Then save locally (this maintains your existing local storage logic)
+      // Then save locally with the Firestore ID included
       setState(() {
         _myContributions.insert(0, contribution);
       });
 
-      _saveContributions();  // Your existing method to save to SharedPreferences
+      _saveContributions();  
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

@@ -103,127 +103,88 @@ class _MapScreenState extends State<MapScreen> {
     await _saveFavorites();
   }
 
-    Future<void> _initializeMap() async {
-      try {
-        setState(() {
-          _statusMessage = 'Getting your location...';
-        });
-        
-        // Get current location
-        await _getCurrentLocation();
-        
-        setState(() {
-          _statusMessage = 'Loading food banks and contributions...';
-        });
-        
-        await _searchFoodBanks(_currentLocation.latitude, _currentLocation.longitude);
-        await _loadCommunityContributions();
-        _updateMarkersAndList();
-      } catch (e) {
-        setState(() {
-          _statusMessage = 'Error: $e';
-          _isLoading = false;
-        });
-        print('Error initializing map: $e');
-      }
-    }
-
-    Future<void> _getCurrentLocation() async {
-      final result = await LocationService.getCurrentLocation();
+  Future<void> _initializeMap() async {
+    try {
+      setState(() {
+        _statusMessage = 'Getting your location...';
+      });
+      
+      // Get current location
+      await _getCurrentLocation();
       
       setState(() {
-        _currentLocation = result.location;
-        if (result.isDefault) {
-          _statusMessage = result.message;
-        }
+        _statusMessage = 'Loading food banks and contributions...';
       });
-    }
-
-Future _loadCommunityContributions() async {
-  try {
-    // Load from Firestore FIRST
-    final snapshot = await FirebaseFirestore.instance
-        .collection('contributions')
-        .where('status', isEqualTo: 'active')
-        .get();
-    
-    for (var doc in snapshot.docs) {
-      final contribution = doc.data();
-      final endDate = DateTime.parse(contribution['endDate'] as String);
       
-      // Only add if it's a Food or Both type (filter out Shelter-only)
-      final type = (contribution['type'] ?? '').toString().toLowerCase();
+      await _searchFoodBanks(_currentLocation.latitude, _currentLocation.longitude);
+      await _loadCommunityContributions();
+      _updateMarkersAndList();
+    } catch (e) {
+      setState(() {
+        _statusMessage = 'Error: $e';
+        _isLoading = false;
+      });
+      print('Error initializing map: $e');
+    }
+  }
 
-      if (endDate.isAfter(DateTime.now()) &&
-          (type == 'food' || type == 'community')) {
-        double distance = _calculateDistance(
-          _currentLocation.latitude,
-          _currentLocation.longitude,
-          contribution['lat'] as double,
-          contribution['lng'] as double,
-        );
-        
-        final contributionPlace = FoodBankPlace(
-          placeId: 'contrib_${doc.id}',  // Use Firestore document ID
-          name: '${contribution['type']} Contribution',
-          address: contribution['location'] as String,
-          lat: contribution['lat'] as double,
-          lng: contribution['lng'] as double,
-          distance: distance,
-          isOpen: true,
-          isContribution: true,
-          contributionData: contribution,
-        );
-        _foodBanks.add(contributionPlace);
+  Future<void> _getCurrentLocation() async {
+    final result = await LocationService.getCurrentLocation();
+    
+    setState(() {
+      _currentLocation = result.location;
+      if (result.isDefault) {
+        _statusMessage = result.message;
       }
-    }
-  } catch (e) {
-    print('Error loading contributions from Firestore: $e');
-    
-    // FALLBACK to local storage if Firestore fails
-    final prefs = await SharedPreferences.getInstance();
-    final String? contributionsJson = prefs.getString('global_contributions');
-    
-    if (contributionsJson != null) {
-      final List decoded = json.decode(contributionsJson);
-      final contributions = decoded
-          .map((e) => Map<String, dynamic>.from(e as Map))
-          .toList();
-      
-      for (var contribution in contributions) {
-        if (contribution['status'] == 'active') {
-          final endDate = DateTime.parse(contribution['endDate'] as String);
-          
-          // Only add if it's a Food or Both type (filter out Shelter-only)
-          final type = (contribution['type'] ?? '').toString().toLowerCase();
+    });
+  }
 
-          if (endDate.isAfter(DateTime.now()) &&
-              (type == 'food' || type == 'community')) {
-            double distance = _calculateDistance(
-              _currentLocation.latitude,
-              _currentLocation.longitude,
-              contribution['lat'] as double,
-              contribution['lng'] as double,
-            );
-            
-            final contributionPlace = FoodBankPlace(
-              placeId: 'contrib_${contribution['id']}',
-              name: '${contribution['type']} Contribution',
-              address: contribution['location'] as String,
-              lat: contribution['lat'] as double,
-              lng: contribution['lng'] as double,
-              distance: distance,
-              isOpen: true,
-              isContribution: true,
-              contributionData: contribution,
-            );
-            _foodBanks.add(contributionPlace);
-          }
+  Future _loadCommunityContributions() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('contributions')
+          .where('status', isEqualTo: 'active')
+          .get();
+      
+      for (var doc in snapshot.docs) {
+        final contribution = doc.data();
+        final endDate = DateTime.parse(contribution['endDate'] as String);
+        final type = (contribution['type'] ?? '').toString().toLowerCase();
+
+        if (endDate.isAfter(DateTime.now()) &&
+            (type == 'food' || type == 'community')) {
+          double distance = _calculateDistance(
+            _currentLocation.latitude,
+            _currentLocation.longitude,
+            contribution['lat'] as double,
+            contribution['lng'] as double,
+          );
+          
+          final contributionPlace = FoodBankPlace(
+            placeId: 'contrib_${doc.id}',
+            name: '${contribution['type']} Contribution',
+            address: contribution['location'] as String,
+            lat: contribution['lat'] as double,
+            lng: contribution['lng'] as double,
+            distance: distance,
+            isOpen: true,
+            isContribution: true,
+            contributionData: contribution,
+          );
+          _foodBanks.add(contributionPlace);
         }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not load contributions'),
+            backgroundColor: Colors.orange,
+          ),
+        );
       }
     }
   }
-}
 
   double _calculateDistance(double lat1, double lng1, double lat2, double lng2) {
     return Geolocator.distanceBetween(lat1, lng1, lat2, lng2) / 1000;

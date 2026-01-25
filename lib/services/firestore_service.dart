@@ -3,18 +3,29 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   /// Save a contribution to Firestore
-  Future<void> addContribution(Map<String, dynamic> contribution) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw Exception('User not logged in');
+  Future<String> addContribution(Map<String, dynamic> contribution) async {
+      try {
+        // Add user info to the contribution
+        final user = _auth.currentUser;
+        if (user != null) {
+          contribution['userId'] = user.uid;
+          contribution['userEmail'] = user.email;
+        }
 
-    await _db.collection('contributions').add({
-      ...contribution,
-      'userId': user.uid,
-      'userEmail': user.email,
-    });
-  }
+        // Add to Firestore
+        DocumentReference docRef = await _db
+            .collection('contributions')
+            .add(contribution);
+        
+        return docRef.id; // Return the Firestore document ID
+      } catch (e) {
+        print('Error adding contribution: $e');
+        rethrow;
+      }
+    }
 
   /// Get contributions by current user
   Stream<QuerySnapshot> getUserContributions() {
