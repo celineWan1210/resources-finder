@@ -9,6 +9,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 import 'services/firestore_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'services/location_service.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -53,7 +54,7 @@ class FoodBankPlace {
 
 class _MapScreenState extends State<MapScreen> {
   GoogleMapController? mapController;
-  LatLng _currentLocation = const LatLng(3.1390, 101.6869);
+  LatLng _currentLocation = LocationService.defaultLocation;
   final Set<Marker> _markers = {};
   final String googleApiKey = dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
   bool _isLoading = true;
@@ -102,23 +103,41 @@ class _MapScreenState extends State<MapScreen> {
     await _saveFavorites();
   }
 
-  Future<void> _initializeMap() async {
-    try {
-      setState(() {
-        _currentLocation = const LatLng(3.1390, 101.6869);
-        _statusMessage = 'Loading food banks and contributions...';
-      });
-      await _searchFoodBanks(_currentLocation.latitude, _currentLocation.longitude);
-      await _loadCommunityContributions();
-      _updateMarkersAndList();
-    } catch (e) {
-      setState(() {
-        _statusMessage = 'Error: $e';
-        _isLoading = false;
-      });
-      print('Error initializing map: $e');
+    Future<void> _initializeMap() async {
+      try {
+        setState(() {
+          _statusMessage = 'Getting your location...';
+        });
+        
+        // Get current location
+        await _getCurrentLocation();
+        
+        setState(() {
+          _statusMessage = 'Loading food banks and contributions...';
+        });
+        
+        await _searchFoodBanks(_currentLocation.latitude, _currentLocation.longitude);
+        await _loadCommunityContributions();
+        _updateMarkersAndList();
+      } catch (e) {
+        setState(() {
+          _statusMessage = 'Error: $e';
+          _isLoading = false;
+        });
+        print('Error initializing map: $e');
+      }
     }
-  }
+
+    Future<void> _getCurrentLocation() async {
+      final result = await LocationService.getCurrentLocation();
+      
+      setState(() {
+        _currentLocation = result.location;
+        if (result.isDefault) {
+          _statusMessage = result.message;
+        }
+      });
+    }
 
 Future _loadCommunityContributions() async {
   try {

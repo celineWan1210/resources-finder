@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
 import 'services/firestore_service.dart';
+import 'services/location_service.dart';
 
 
 class ContributionScreen extends StatefulWidget {
@@ -98,10 +99,8 @@ class _ContributionScreenState extends State<ContributionScreen> {
   final TextEditingController _contactController = TextEditingController();
   XFile? _selectedImage;
   final ImagePicker _picker = ImagePicker();
-
-  // Hardcoded KL location
-  final LatLng _currentLocation = const LatLng(3.1390, 101.6869);
-  final String _currentLocationName = 'Kuala Lumpur, Malaysia';
+  LatLng _currentLocation = LocationService.defaultLocation;
+  String _currentLocationName = LocationService.defaultLocationName;
 
   // Time availability
   DateTime _startDate = DateTime.now();
@@ -125,9 +124,18 @@ class _ContributionScreenState extends State<ContributionScreen> {
   List<Map<String, dynamic>> _myContributions = [];
   String? _selectedContributionFilter = null;
 
+  Future<void> _loadCurrentLocation() async {
+    final result = await LocationService.getCurrentLocation();
+    setState(() {
+      _currentLocation = result.location;
+      _currentLocationName = result.locationName ?? LocationService.defaultLocationName;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+    _loadCurrentLocation();
     _loadContributions();
   }
 
@@ -246,6 +254,10 @@ class _ContributionScreenState extends State<ContributionScreen> {
   }
 
   void _submitContribution() async {  // Add async here
+    if (_useCurrentLocation && _currentLocation == null) {
+      await _loadCurrentLocation();
+    }
+
     String location = _useCurrentLocation
         ? _currentLocationName
         : _manualLocationController.text;
@@ -304,6 +316,8 @@ class _ContributionScreenState extends State<ContributionScreen> {
       'status': 'active',
       'verified': false,
     };
+
+    
 
     try {
       // Save to Firestore FIRST
