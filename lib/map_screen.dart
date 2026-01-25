@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
+import 'services/firestore_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -60,6 +62,7 @@ class _MapScreenState extends State<MapScreen> {
   List<FoodBankPlace> _foodBanks = [];
   Set<String> _favoriteIds = {};
   bool _showContributionsOnly = false;
+  final FirestoreService _firestoreService = FirestoreService();
 
   final List<String> keywords = [
     'food bank',
@@ -117,7 +120,48 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  Future _loadCommunityContributions() async {
+Future _loadCommunityContributions() async {
+  try {
+    // Load from Firestore FIRST
+    final snapshot = await FirebaseFirestore.instance
+        .collection('contributions')
+        .where('status', isEqualTo: 'active')
+        .get();
+    
+    for (var doc in snapshot.docs) {
+      final contribution = doc.data();
+      final endDate = DateTime.parse(contribution['endDate'] as String);
+      
+      // Only add if it's a Food or Both type (filter out Shelter-only)
+      final type = (contribution['type'] ?? '').toString().toLowerCase();
+
+      if (endDate.isAfter(DateTime.now()) &&
+          (type == 'food' || type == 'community')) {
+        double distance = _calculateDistance(
+          _currentLocation.latitude,
+          _currentLocation.longitude,
+          contribution['lat'] as double,
+          contribution['lng'] as double,
+        );
+        
+        final contributionPlace = FoodBankPlace(
+          placeId: 'contrib_${doc.id}',  // Use Firestore document ID
+          name: '${contribution['type']} Contribution',
+          address: contribution['location'] as String,
+          lat: contribution['lat'] as double,
+          lng: contribution['lng'] as double,
+          distance: distance,
+          isOpen: true,
+          isContribution: true,
+          contributionData: contribution,
+        );
+        _foodBanks.add(contributionPlace);
+      }
+    }
+  } catch (e) {
+    print('Error loading contributions from Firestore: $e');
+    
+    // FALLBACK to local storage if Firestore fails
     final prefs = await SharedPreferences.getInstance();
     final String? contributionsJson = prefs.getString('global_contributions');
     
@@ -160,6 +204,7 @@ class _MapScreenState extends State<MapScreen> {
       }
     }
   }
+}
 
   double _calculateDistance(double lat1, double lng1, double lat2, double lng2) {
     return Geolocator.distanceBetween(lat1, lng1, lat2, lng2) / 1000;

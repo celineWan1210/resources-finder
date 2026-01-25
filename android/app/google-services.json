@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "517336120648",
+    "project_id": "kita-hack-resource-finder",
+    "storage_bucket": "kita-hack-resource-finder.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:517336120648:android:eae6bf70bbca13ada7477d",
+        "android_client_info": {
+          "package_name": "com.example.resource_finder"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnYf5U9WHjlRrke7GAKTCSR1GXriUpGUc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
+import 'services/firestore_service.dart';
 
 
 class ContributionScreen extends StatefulWidget {
@@ -33,6 +34,7 @@ class ContributionCategory {
 class _ContributionScreenState extends State<ContributionScreen> {
   int _currentView = 0; // 0 = Contribute, 1 = My Contributions
   int _contributionStep = 1; // 1 = Select Category, 2 = Fill Details
+  final FirestoreService _firestoreService = FirestoreService();
   
   // Step 1: Category selection
   Set<String> _selectedCategories = {};
@@ -243,7 +245,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
     }
   }
 
-  void _submitContribution() {
+  void _submitContribution() async {  // Add async here
     String location = _useCurrentLocation
         ? _currentLocationName
         : _manualLocationController.text;
@@ -282,7 +284,6 @@ class _ContributionScreenState extends State<ContributionScreen> {
       }
     }
 
-
     final contribution = {
       'id': DateTime.now().millisecondsSinceEpoch.toString(),
       'type': contributionType,
@@ -304,25 +305,38 @@ class _ContributionScreenState extends State<ContributionScreen> {
       'verified': false,
     };
 
-    setState(() {
-      _myContributions.insert(0, contribution);
-    });
+    try {
+      // Save to Firestore FIRST
+      await _firestoreService.addContribution(contribution);
+      
+      // Then save locally (this maintains your existing local storage logic)
+      setState(() {
+        _myContributions.insert(0, contribution);
+      });
 
-    _saveContributions();
+      _saveContributions();  // Your existing method to save to SharedPreferences
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('✓ Contribution submitted successfully!'),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('✓ Contribution submitted successfully!'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
 
-    _resetForm();
-    setState(() {
-      _currentView = 1;
-    });
+      _resetForm();
+      setState(() {
+        _currentView = 1;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving contribution: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _resetForm() {
@@ -363,31 +377,61 @@ class _ContributionScreenState extends State<ContributionScreen> {
     );
 
     if (confirm == true) {
-      setState(() {
-        _myContributions.removeWhere((c) => c['id'] == id);
-      });
-      await _saveContributions();
-      
-      if (mounted) {
+      try {
+        // Delete from Firestore
+        final contribution = _myContributions.firstWhere((c) => c['id'] == id);
+        if (contribution['firestoreId'] != null) {
+          await _firestoreService.deleteContribution(contribution['firestoreId']);
+        }
+        
+        // Delete locally
+        setState(() {
+          _myContributions.removeWhere((c) => c['id'] == id);
+        });
+        await _saveContributions();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Contribution deleted')),
+          );
+        }
+      } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Contribution deleted')),
+          SnackBar(content: Text('Error deleting: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
   Future<void> _markAsCompleted(String id) async {
-    setState(() {
-      final index = _myContributions.indexWhere((c) => c['id'] == id);
-      if (index != -1) {
-        _myContributions[index]['status'] = 'completed';
+    try {
+      final contribution = _myContributions.firstWhere((c) => c['id'] == id);
+      
+      // Update in Firestore
+      if (contribution['firestoreId'] != null) {
+        await _firestoreService.updateContributionStatus(
+          contribution['firestoreId'], 
+          'completed'
+        );
       }
-    });
-    await _saveContributions();
-    
-    if (mounted) {
+      
+      // Update locally
+      setState(() {
+        final index = _myContributions.indexWhere((c) => c['id'] == id);
+        if (index != -1) {
+          _myContributions[index]['status'] = 'completed';
+        }
+      });
+      await _saveContributions();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Marked as completed')),
+        );
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Marked as completed')),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     }
   }

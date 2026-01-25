@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
-import 'home_screen.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'login_screen.dart';
+import 'home_screen.dart';
 
-Future<void> main() async {
-  // Ensure Flutter bindings are initialized
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Load the .env file
+  
+  // Load environment variables
   await dotenv.load(fileName: ".env");
-
-  // Run the app
+  
+  // Initialize Firebase
+  await Firebase.initializeApp();
+  
   runApp(const MyApp());
 }
 
@@ -20,10 +23,12 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Community Resource Finder',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const HomeScreen(),
+      theme: ThemeData(primarySwatch: Colors.blue),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const LoginScreen(),
+        '/home': (context) => const HomeScreen(),
+      },
     );
   }
 }

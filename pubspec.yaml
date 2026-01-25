@@ -19,6 +19,11 @@ dependencies:
   flutter_dotenv: ^5.0.2
   image_picker: ^0.8.7+5
   intl: ^0.18.1 
+  firebase_core: ^4.4.0
+  firebase_auth: ^6.1.4
+  cloud_firestore: ^6.1.2
+  firebase_storage: ^13.0.6
+  google_sign_in: ^6.2.4 
 
 dev_dependencies:
   flutter_test:
