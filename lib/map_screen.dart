@@ -156,9 +156,21 @@ class _MapScreenState extends State<MapScreen> {
         final contribution = doc.data();
         final endDate = DateTime.parse(contribution['endDate'] as String);
         final type = (contribution['type'] ?? '').toString().toLowerCase();
+        final moderationStatus = contribution['moderationStatus'] ?? 'pending';
 
-        if (endDate.isAfter(DateTime.now()) &&
-            (type == 'food' || type == 'community')) {
+        // FILTER BY TYPE: Only show contributions matching current map type
+        bool shouldShow = false;
+        if (widget.locationType == 'foodbank' && type == 'food') {
+          shouldShow = true;
+        } else if (widget.locationType == 'shelter' && type == 'shelter') {
+          shouldShow = true;
+        }
+        // Don't show 'community' type contributions yet
+
+        // Only add if it matches the map type, is not expired, and is approved
+        if (shouldShow && 
+            endDate.isAfter(DateTime.now()) &&
+            moderationStatus == 'approved') {
           double distance = _calculateDistance(
             _currentLocation.latitude,
             _currentLocation.longitude,
@@ -253,6 +265,7 @@ class _MapScreenState extends State<MapScreen> {
     }
     return false;
   }
+  
   Future<void> _searchFoodBanks(double lat, double lng) async {
     List<Map<String, dynamic>> allPlaces = [];
     List<String> keywordsLower = _keywords.map((k) => k.toLowerCase()).toList();
@@ -600,6 +613,11 @@ class _MapScreenState extends State<MapScreen> {
     final contribution = place.contributionData!;
     final startDate = DateTime.parse(contribution['startDate']);
     final endDate = DateTime.parse(contribution['endDate']);
+    
+    // Get moderation status
+    final moderationStatus = contribution['moderationStatus'] ?? 'pending';
+    final riskScore = contribution['riskScore'] ?? 'unknown';
+    final verified = contribution['verified'] ?? false;
 
     showModalBottomSheet(
       context: context,
@@ -625,7 +643,7 @@ class _MapScreenState extends State<MapScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
-                          contribution['type'] == 'Food' 
+                          contribution['type'] == 'food' 
                               ? Icons.restaurant 
                               : Icons.home,
                           color: Colors.purple[700],
@@ -654,25 +672,85 @@ class _MapScreenState extends State<MapScreen> {
                           ],
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Text(
-                          'ACTIVE',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.green,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Text(
+                              'ACTIVE',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
-                        ),
+                          if (verified)
+                            const SizedBox(height: 4),
+                          if (verified)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.blue,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  Icon(Icons.verified, color: Colors.white, size: 12),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'AI Verified',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // AI Verification Banner
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.green[200]!),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green[700], size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'This contribution has been verified by AI moderation',
+                            style: TextStyle(
+                              color: Colors.green[900],
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 20),
 
@@ -700,7 +778,7 @@ class _MapScreenState extends State<MapScreen> {
                   _buildInfoRow(
                     Icons.numbers,
                     'Quantity',
-                    '${contribution['quantity']} ${contribution['type'] == 'Food' ? 'meals/packages' : 'people'}',
+                    '${contribution['quantity']} ${contribution['type'] == 'food' ? 'meals/packages' : 'people'}',
                   ),
                   const SizedBox(height: 12),
                   _buildInfoRow(
@@ -929,25 +1007,52 @@ class _MapScreenState extends State<MapScreen> {
       itemBuilder: (context, index) {
         final place = displayList[index];
         final isFavorite = _favoriteIds.contains(place.placeId);
+        
+        // For contributions, check verification status
+        final isVerified = place.isContribution 
+            ? (place.contributionData?['verified'] ?? false)
+            : false;
 
         return Card(
           margin: const EdgeInsets.only(bottom: 10),
           elevation: 3,
           child: ListTile(
             contentPadding: const EdgeInsets.all(15),
-            leading: CircleAvatar(
-              radius: 25,
-              backgroundColor: place.isContribution 
-                  ? Colors.purple 
-                  : place.isOpen ? Colors.green : Colors.grey,
-              child: Icon(
-                place.isContribution 
-                    ? Icons.volunteer_activism
-                    : isFavorite ? Icons.favorite : widget.locationType == 'foodbank'
-                        ? Icons.restaurant
-                        :Icons.home,
-                color: Colors.white,
-              ),
+            leading: Stack(
+              children: [
+                CircleAvatar(
+                  radius: 25,
+                  backgroundColor: place.isContribution 
+                      ? Colors.purple 
+                      : place.isOpen ? Colors.green : Colors.grey,
+                  child: Icon(
+                    place.isContribution 
+                        ? Icons.volunteer_activism
+                        : isFavorite ? Icons.favorite : widget.locationType == 'foodbank'
+                            ? Icons.restaurant
+                            : Icons.home,
+                    color: Colors.white,
+                  ),
+                ),
+                if (isVerified)
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.blue,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: const Icon(
+                        Icons.verified,
+                        color: Colors.white,
+                        size: 12,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             title: Text(
               place.name,
@@ -1000,6 +1105,14 @@ class _MapScreenState extends State<MapScreen> {
                         ),
                       ),
                     ),
+                    if (isVerified) ...[
+                      const SizedBox(width: 8),
+                      const Icon(
+                        Icons.verified,
+                        color: Colors.blue,
+                        size: 16,
+                      ),
+                    ],
                   ],
                 ),
               ],
@@ -1224,7 +1337,7 @@ class _MapScreenState extends State<MapScreen> {
                         children: const [
                           Icon(Icons.location_on, color: Colors.purple, size: 20),
                           SizedBox(width: 8),
-                          Text('Contributions', style: TextStyle(fontSize: 12)),
+                          Text('Community Contribution', style: TextStyle(fontSize: 12)),
                         ],
                       ),
                       const SizedBox(height: 4),

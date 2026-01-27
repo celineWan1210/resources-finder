@@ -319,6 +319,9 @@ class _ContributionScreenState extends State<ContributionScreen> {
       contributionType = 'community';
     }
 
+    // FIXED: Properly trim and store contact information
+    final contactInfo = _contactController.text.trim();
+
     final contribution = {
       'id': DateTime.now().millisecondsSinceEpoch.toString(),
       'userId': currentUser.uid,
@@ -330,7 +333,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
       'lng': _currentLocation.longitude,
       'description': _descriptionController.text,
       'quantity': _quantityController.text,
-      'contact': _contactController.text,
+      'contact': contactInfo, // FIXED: Now properly stored
       'tags': _selectedTags.toList(),
       'startDate': _startDate.toIso8601String(),
       'endDate': _endDate.toIso8601String(),
@@ -1127,14 +1130,19 @@ Future<void> _syncModerationStatus() async {
       checkmarkColor: Theme.of(context).primaryColor,
     );
   }
-// Replace your _buildContributionCard method with this updated version:
 
+// FIXED: Better contact display logic
 Widget _buildContributionCard(Map<String, dynamic> contribution) {
   final isActive = contribution['status'] == 'active';
   final startDate = DateTime.parse(contribution['startDate']);
   final endDate = DateTime.parse(contribution['endDate']);
   final createdAt = DateTime.parse(contribution['createdAt']);
   final categories = List<String>.from(contribution['categories'] ?? []);
+  
+  // FIXED: Safer contact extraction with trim
+  final contactRaw = contribution['contact'];
+  final contact = (contactRaw is String) ? contactRaw.trim() : '';
+  final hasContact = contact.isNotEmpty;
   
   // Get moderation status
   final moderationStatus = contribution['moderationStatus'] ?? 'pending';
@@ -1323,9 +1331,10 @@ Widget _buildContributionCard(Map<String, dynamic> contribution) {
                 '${contribution['startTime']} - ${contribution['endTime']}',
               ),
               
-              if (contribution['contact'] != null && contribution['contact'].isNotEmpty) ...[
+              // FIXED: Better contact display with proper null checking
+              if (hasContact) ...[
                 const SizedBox(height: 8),
-                _buildInfoRow(Icons.phone, contribution['contact']),
+                _buildInfoRow(Icons.phone, contact),
               ],
               
               if ((contribution['tags'] as List).isNotEmpty) ...[
@@ -1402,7 +1411,7 @@ Widget _buildContributionCard(Map<String, dynamic> contribution) {
       onPressed: () {
         setState(() => _currentView = index);
         if (index == 1) {
-          _syncModerationStatus(); // ADD THIS LINE - sync when viewing contributions
+          _syncModerationStatus(); // Sync when viewing contributions
         }
       },
       icon: Icon(icon, size: 20),

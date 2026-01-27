@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'map_screen.dart';
-import 'contribution_screen.dart';
+import 'contribution_screen.dart' as contrib;
+import 'profile_screen.dart'; // You'll need to create this
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -51,7 +53,12 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
               onSelected: (value) async {
-                if (value == 'logout') {
+                if (value == 'profile') {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                  );
+                } else if (value == 'logout') {
                   await FirebaseAuth.instance.signOut();
                   if (context.mounted) {
                     Navigator.pushReplacementNamed(context, '/login');
@@ -79,6 +86,16 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
                       const Divider(),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'profile',
+                  child: Row(
+                    children: [
+                      Icon(Icons.person, color: Colors.blue, size: 20),
+                      SizedBox(width: 12),
+                      Text('Profile'),
                     ],
                   ),
                 ),
@@ -137,15 +154,15 @@ class HomeScreen extends StatelessWidget {
                   _buildActionCard(
                     context: context,
                     title: 'Find Food Banks',
-                    subtitle: 'Discover nearby food assistance centers',
+                    subtitle: 'Food banks and AI-verified food contributions',
                     icon: Icons.restaurant_menu,
                     gradient: LinearGradient(
-                      colors: [Colors.blue[400]!, Colors.blue[600]!],
+                      colors: [Colors.orange[400]!, Colors.orange[600]!],
                     ),
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => MapScreen(locationType: 'foodbank')),
+                        MaterialPageRoute(builder: (context) => const MapScreen(locationType: 'foodbank')),
                       );
                     },
                   ),
@@ -155,19 +172,19 @@ class HomeScreen extends StatelessWidget {
                   _buildActionCard(
                     context: context,
                     title: 'Find Shelters',
-                    subtitle: 'Discover nearby shelters, living spaces',
+                    subtitle: 'Shelters and AI-verified shelter contributions',
                     icon: Icons.home_filled,
                     gradient: const LinearGradient(
-                    colors: [Color.fromARGB(128, 233, 30, 98), Color.fromARGB(175, 233, 30, 98)],
+                      colors: [Color.fromARGB(128, 233, 30, 98), Color.fromARGB(175, 233, 30, 98)],
                     ),
                     onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => MapScreen(locationType: 'shelter')),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 20),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const MapScreen(locationType: 'shelter')),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 20),
 
                   // Contribute Card
                   _buildActionCard(
@@ -175,7 +192,7 @@ class HomeScreen extends StatelessWidget {
                     title: 'Contribute Resources',
                     subtitle: isGuest 
                         ? 'Login to share with your community'
-                        : 'Share food, shelter, or volunteer time',
+                        : 'Share food, shelter, or other resources (AI moderated)',
                     icon: isGuest ? Icons.lock_outline : Icons.volunteer_activism,
                     gradient: isGuest
                         ? LinearGradient(
@@ -192,11 +209,68 @@ class HomeScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const ContributionScreen(),
+                            builder: (context) => const contrib.ContributionScreen(),
                           ),
                         );
                       }
                     },
+                  ),
+                  const SizedBox(height: 32),
+
+                  // How it works section
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.info_outline, color: Colors.blue[700], size: 24),
+                            const SizedBox(width: 12),
+                            Text(
+                              'How It Works',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _buildInfoRow(
+                          icon: Icons.map,
+                          color: Colors.orange,
+                          title: 'Find Resources',
+                          description: 'Browse food banks and shelters on separate maps',
+                        ),
+                        const SizedBox(height: 12),
+                        _buildInfoRow(
+                          icon: Icons.verified,
+                          color: Colors.purple,
+                          title: 'AI Verified',
+                          description: 'Community contributions are checked by AI for safety',
+                        ),
+                        const SizedBox(height: 12),
+                        _buildInfoRow(
+                          icon: Icons.volunteer_activism,
+                          color: Colors.green,
+                          title: 'Contribute',
+                          description: 'Share food, shelter, or volunteer opportunities',
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 20),
 
@@ -241,6 +315,51 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildInfoRow({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String description,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildActionCard({
     required BuildContext context,
     required String title,
@@ -253,7 +372,7 @@ class HomeScreen extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 220, // Fixed height for cards
+        height: 240, // Fixed height for cards
         decoration: BoxDecoration(
           gradient: gradient,
           borderRadius: BorderRadius.circular(20),
@@ -384,4 +503,5 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
+
 }

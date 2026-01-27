@@ -86,15 +86,27 @@ class ModerationService {
 
   /// Call Gemini API to analyze content with retry logic
   static Future<Map<String, dynamic>> _analyzeWithGemini(Map<String, dynamic> contribution) async {
+    // FIXED: Now includes contact information in the analysis
+    final contact = contribution['contact'] ?? '';
+    final hasContact = contact.isNotEmpty;
+    
     final prompt = '''Analyze this community aid post for safety. Return ONLY valid JSON.
 
 Post Details:
 Description: "${contribution['description'] ?? 'N/A'}"
 Categories: ${json.encode(contribution['categories'] ?? [])}
 Location: "${contribution['location'] ?? 'N/A'}"
-Contact: "${contribution['contact'] ?? 'N/A'}"
+${hasContact ? 'Contact Information: "$contact"' : 'Contact: Not provided'}
 
-Check for: scams, fake offers, inappropriate content, suspicious info, spam.
+Check for:
+- Scams or fake offers
+- Inappropriate or offensive content
+- Suspicious contact information (fake numbers, scam patterns)
+- Requests for money or personal information
+- Spam or commercial advertising
+- Contact info that seems suspicious or incomplete
+
+${hasContact ? 'Pay special attention to the contact information - check if it looks legitimate.' : ''}
 
 IMPORTANT: Keep "reason" field to 2 sentences maximum or less.
 
@@ -116,7 +128,7 @@ Response format (valid JSON only, no extra text):
       ],
       'generationConfig': {
         'temperature': 0.2,
-        'maxOutputTokens': 1000, // Increased from 500
+        'maxOutputTokens': 1000,
       }
     };
 
