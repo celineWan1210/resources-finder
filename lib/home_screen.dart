@@ -145,11 +145,29 @@ class HomeScreen extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const MapScreen()),
+                        MaterialPageRoute(builder: (context) => MapScreen(locationType: 'foodbank')),
                       );
                     },
                   ),
                   const SizedBox(height: 20),
+
+                  //Shelter Card
+                  _buildActionCard(
+                    context: context,
+                    title: 'Find Shelters',
+                    subtitle: 'Discover nearby shelters, living spaces',
+                    icon: Icons.home_filled,
+                    gradient: const LinearGradient(
+                    colors: [Color.fromARGB(128, 233, 30, 98), Color.fromARGB(175, 233, 30, 98)],
+                    ),
+                    onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => MapScreen(locationType: 'shelter')),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 20),
 
                   // Contribute Card
                   _buildActionCard(

@@ -107,6 +107,14 @@ class LoginScreen extends StatelessWidget {
                     color: Colors.orange,
                   ),
                   const SizedBox(height: 12),
+                  //Shelter UI card
+                  _buildFeatureCard(
+                    icon:Icons.home_rounded,
+                    title: 'Find Shelters',
+                    description: 'Locate nearby shelters, living space',
+                    color: Colors.pinkAccent,
+                  ),
+                  const SizedBox(height: 12),
                   _buildFeatureCard(
                     icon: Icons.add_circle,
                     title: 'Contribute Resources',

@@ -12,7 +12,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'services/location_service.dart';
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  final String locationType; //foodbank or shelter
+  const MapScreen({
+    super.key,
+    this.locationType = 'foodbank',
+  });
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -65,17 +69,17 @@ class _MapScreenState extends State<MapScreen> {
   bool _showContributionsOnly = false;
   final FirestoreService _firestoreService = FirestoreService();
 
-  final List<String> keywords = [
-    'food bank',
-    'food charity',
-    'lost food project',
-    'food aid',
-    'charity food'
-  ];
+  //Different keywords based on type
+  late final List<String> _keywords;
 
   @override
   void initState() {
     super.initState();
+    _keywords= widget.locationType == 'foodbank'
+       ? ['food bank', 'food charity', 'lost food project', 'food aid', 'charity food']
+       : ['homeless shelter', 'shelter', 'emergency housing', 'transit home', 'rumah perlindungan', 'refuge center',
+       'transitional housing', 'living center', 'living centre',"gelandangan"];
+
     _loadFavorites();
     _initializeMap();
   }
@@ -86,6 +90,8 @@ class _MapScreenState extends State<MapScreen> {
       _favoriteIds = (prefs.getStringList('favorites') ?? []).toSet();
     });
   }
+
+  String get _typeLabel => widget.locationType == 'foodbank' ? 'Food Bank' : 'Shelter';
 
   Future<void> _saveFavorites() async {
     final prefs = await SharedPreferences.getInstance();
@@ -108,15 +114,15 @@ class _MapScreenState extends State<MapScreen> {
       setState(() {
         _statusMessage = 'Getting your location...';
       });
-      
       // Get current location
       await _getCurrentLocation();
       
       setState(() {
-        _statusMessage = 'Loading food banks and contributions...';
+        _statusMessage = 'Loading ${_typeLabel}s and contributions...';
       });
-      
+
       await _searchFoodBanks(_currentLocation.latitude, _currentLocation.longitude);
+
       await _loadCommunityContributions();
       _updateMarkersAndList();
     } catch (e) {
@@ -240,11 +246,18 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  bool _shouldExcludePlace(String name) {
+    final lower = name.toLowerCase();
+    if (widget.locationType == 'shelter') {
+        return lower.contains('shelter security') || lower.contains('111 bomb shelter');
+    }
+    return false;
+  }
   Future<void> _searchFoodBanks(double lat, double lng) async {
     List<Map<String, dynamic>> allPlaces = [];
-    List<String> keywordsLower = keywords.map((k) => k.toLowerCase()).toList();
+    List<String> keywordsLower = _keywords.map((k) => k.toLowerCase()).toList();
 
-    for (String keyword in keywords) {
+    for (String keyword in _keywords) {
       final url =
           'https://maps.googleapis.com/maps/api/place/nearbysearch/json'
           '?location=$lat,$lng'
@@ -258,7 +271,7 @@ class _MapScreenState extends State<MapScreen> {
 
         if (response.statusCode == 200) {
           final data = json.decode(response.body);
-          
+
           if (data['status'] == 'REQUEST_DENIED') {
             setState(() {
               _statusMessage = 'API Error: ${data['error_message']}';
@@ -270,7 +283,9 @@ class _MapScreenState extends State<MapScreen> {
           final results = data['results'] ?? [];
 
           for (var place in results) {
-            String name = (place['name'] ?? '').toString().toLowerCase();
+            final String name = (place['name'] ?? '').toString().toLowerCase();
+            if(_shouldExcludePlace(name)) continue;
+
             bool containsKeyword = keywordsLower.any((k) => name.contains(k));
 
             if (containsKeyword) {
@@ -326,7 +341,9 @@ class _MapScreenState extends State<MapScreen> {
               ? BitmapDescriptor.hueViolet
               : _favoriteIds.contains(place.placeId) 
                   ? BitmapDescriptor.hueRed 
-                  : BitmapDescriptor.hueOrange,
+                  : widget.locationType == 'foodbank'
+                    ? BitmapDescriptor.hueOrange //Orange pin for food banks
+                    : BitmapDescriptor.hueRose, //Pink pin for shelter
         ),
         onTap: () => _showPlaceDetailsDialog(place),
       );
@@ -339,8 +356,8 @@ class _MapScreenState extends State<MapScreen> {
     setState(() {
       _isLoading = false;
       final contributionCount = _foodBanks.where((f) => f.isContribution).length;
-      final foodBankCount = _foodBanks.length - contributionCount;
-      _statusMessage = 'Found $foodBankCount food bank(s) and $contributionCount contribution(s)';
+      final locationCount = _foodBanks.length - contributionCount;
+      _statusMessage = 'Found $locationCount ${_typeLabel.toLowerCase()}(s) and $contributionCount contribution(s)';
     });
 
     if (_markers.isNotEmpty && mapController != null && _isMapView) {
@@ -926,7 +943,9 @@ class _MapScreenState extends State<MapScreen> {
               child: Icon(
                 place.isContribution 
                     ? Icons.volunteer_activism
-                    : isFavorite ? Icons.favorite : Icons.restaurant,
+                    : isFavorite ? Icons.favorite : widget.locationType == 'foodbank'
+                        ? Icons.restaurant
+                        :Icons.home,
                 color: Colors.white,
               ),
             ),
@@ -1188,10 +1207,16 @@ class _MapScreenState extends State<MapScreen> {
                       ),
                       const SizedBox(height: 8),
                       Row(
-                        children: const [
-                          Icon(Icons.location_on, color: Colors.orange, size: 20),
+                        children: [
+                          Icon(
+                            Icons.location_on, 
+                            color: widget.locationType == 'foodbank' 
+                              ? Colors.orange //Orange for food banks
+                              : const Color.fromARGB(175, 233, 30, 98), //Pink for shelter
+                            size: 20
+                          ),
                           SizedBox(width: 8),
-                          Text('Food Banks', style: TextStyle(fontSize: 12)),
+                          Text(_typeLabel + "s", style: TextStyle(fontSize: 12)),
                         ],
                       ),
                       const SizedBox(height: 4),
