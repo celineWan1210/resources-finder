@@ -12,7 +12,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'services/location_service.dart';
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({super.key});
+  final LatLng? targetLocation;
+  final String? targetTitle;
+  final String? targetDescription;
+  
+  const MapScreen({
+    super.key,
+    this.targetLocation,
+    this.targetTitle,
+    this.targetDescription,
+  });
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -119,6 +128,13 @@ class _MapScreenState extends State<MapScreen> {
       await _searchFoodBanks(_currentLocation.latitude, _currentLocation.longitude);
       await _loadCommunityContributions();
       _updateMarkersAndList();
+      
+      // If target location provided, focus on it after a short delay
+      if (widget.targetLocation != null) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          _focusOnTargetLocation();
+        });
+      }
     } catch (e) {
       setState(() {
         _statusMessage = 'Error: $e';
@@ -126,6 +142,35 @@ class _MapScreenState extends State<MapScreen> {
       });
       print('Error initializing map: $e');
     }
+  }
+  
+  void _focusOnTargetLocation() {
+    if (widget.targetLocation == null || mapController == null) return;
+    
+    // Add a special marker for the target location
+    final targetMarker = Marker(
+      markerId: const MarkerId('target_helper'),
+      position: widget.targetLocation!,
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+      infoWindow: InfoWindow(
+        title: widget.targetTitle ?? 'Helper Location',
+        snippet: widget.targetDescription ?? 'Contribution location',
+      ),
+    );
+    
+    setState(() {
+      _markers.add(targetMarker);
+    });
+    
+    // Animate camera to target location
+    mapController?.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: widget.targetLocation!,
+          zoom: 15,
+        ),
+      ),
+    );
   }
 
   Future<void> _getCurrentLocation() async {

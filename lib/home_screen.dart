@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'map_screen.dart';
 import 'contribution_screen.dart';
+import 'request_help_screen.dart';
+
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -181,6 +183,37 @@ class HomeScreen extends StatelessWidget {
                     },
                   ),
                   const SizedBox(height: 20),
+                  
+                  // Request Help Card
+                  _buildActionCard(
+                    context: context,
+                    title: 'Request Help',
+                    subtitle: isGuest
+                        ? 'Login to request assistance'
+                        : 'Submit a request for food, shelter, or other needs',
+                    icon: isGuest ? Icons.lock_outline : Icons.help_outline,
+                    gradient: isGuest
+                        ? LinearGradient(
+                            colors: [Colors.grey[400]!, Colors.grey[600]!],
+                          )
+                        : LinearGradient(
+                            colors: [Colors.purple[400]!, Colors.purple[600]!],
+                          ),
+                    isDisabled: isGuest,
+                    onTap: () {
+                      if (isGuest) {
+                        _showLoginDialog(context);
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const RequestHelpScreen(),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 20),
 
                   // Info banner for guests
                   if (isGuest)
@@ -235,7 +268,8 @@ class HomeScreen extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 220, // Fixed height for cards
+        constraints: const BoxConstraints(minHeight: 160),
+        // height:220, // Fixed height for cards
         decoration: BoxDecoration(
           gradient: gradient,
           borderRadius: BorderRadius.circular(20),
@@ -264,7 +298,8 @@ class HomeScreen extends StatelessWidget {
               padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
+                // mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   Container(
                     padding: const EdgeInsets.all(12),
