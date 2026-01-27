@@ -1,13 +1,5 @@
-/**
- * Admin Script to Generate Moderator Verification Codes
- * Run this script with Node.js to create verification codes and send emails
- * 
- * Setup:
- * 1. npm install firebase-admin nodemailer
- * 2. Download your Firebase service account key JSON
- * 3. Set up email credentials (Gmail recommended)
- * 4. Run: node generate_moderator_code.js
- */
+const dotenv = require('dotenv');
+dotenv.config();
 
 const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
@@ -25,8 +17,8 @@ const db = admin.firestore();
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'wanyingxuan1210@gmail.com', 
-    pass: 'kldt dqbe losi qkxb'      
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
   }
 });
 
