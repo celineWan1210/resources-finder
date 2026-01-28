@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -177,8 +178,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         _buildActionButton(
                           context: context,
                           icon: Icons.verified_user,
-                          title: 'Get Code',
-                          subtitle: 'Request a moderator verification code',
+                          title: 'Get Moderator Code',
+                          subtitle: 'Generate code to access moderator portal',
                           color: Colors.purple,
                           onTap: () {
                             _showVerificationCodeDialog(context, user!);
@@ -453,7 +454,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: const [
             Icon(Icons.verified_user, color: Colors.purple),
             SizedBox(width: 12),
-            Text('Request Verification Code'),
+            Text('Generate Code'),
           ],
         ),
         content: Column(
@@ -461,7 +462,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'A verification code will be sent to your email address:',
+              'Generate a verification code to access the moderator portal.',
               style: TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 12),
@@ -503,7 +504,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'The code will expire in 7 days and can only be used once.',
+                      'The code will be shown on screen and will expire in 7 days. It can only be used once.',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.amber[900],
@@ -528,8 +529,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Navigator.pop(context);
               await _requestVerificationCode(context, user);
             },
-            icon: const Icon(Icons.send, size: 18),
-            label: const Text('Send Code'),
+            icon: const Icon(Icons.generating_tokens, size: 18),
+            label: const Text('Generate Code'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.purple[600],
               foregroundColor: Colors.white,
@@ -567,22 +568,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
 
-      // Generate verification code (same logic as Node.js backend)
+      // Generate verification code
       String code = _generateVerificationCode();
       
-      // Save to Firestore (same structure as Node.js backend)
+      // Save to Firestore
       await FirebaseFirestore.instance.collection('moderatorCodes').doc(code).set({
         'email': user.email,
         'code': code,
         'used': false,
         'createdAt': FieldValue.serverTimestamp(),
         'expiresAt': Timestamp.fromDate(
-          DateTime.now().add(const Duration(days: 7)), // 7 days from now
+          DateTime.now().add(const Duration(days: 7)),
         ),
       });
-
-      // In production, you would trigger a Cloud Function to send the email
-      // The Node.js backend can monitor this collection and send emails
       
       if (context.mounted) {
         Navigator.pop(context); // Close loading dialog
@@ -602,7 +600,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // Generate verification code - matches Node.js backend logic
+  // Generate verification code - 8 characters
   String _generateVerificationCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     String code = '';
@@ -617,55 +615,123 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showCodeGeneratedDialog(BuildContext context, String code) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: const [
-            Icon(Icons.check_circle, color: Colors.green),
+            Icon(Icons.verified_user, color: Colors.green),
             SizedBox(width: 12),
-            Text('Code Generated!'),
+            Text('Verification Code'),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Your verification code:',
-              style: TextStyle(fontSize: 14),
+              'Your moderator verification code:',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.purple[600],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                code,
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 5,
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: code));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Code copied to clipboard!'),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.purple[700]!, Colors.purple[500]!],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.purple.withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      code,
+                      style: const TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 8,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.content_copy,
+                          color: Colors.white.withValues(alpha: 0.9),
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Tap to copy',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.blue[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue[200]!),
+                color: Colors.amber[50],
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.amber[300]!, width: 1.5),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.email, color: Colors.blue[700], size: 20),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'This code will be sent to your email',
-                      style: TextStyle(fontSize: 12),
+                  Icon(Icons.info_outline, color: Colors.amber[800], size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Important:',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.amber[900],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '• Valid for 7 days\n• Can only be used once\n• Use it to access moderator portal',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.amber[900],
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -674,17 +740,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
         actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple[600],
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: code));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Code copied to clipboard!'),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.content_copy, size: 18),
+                  label: const Text('Copy Code'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.purple[600],
+                    side: BorderSide(color: Colors.purple[600]!),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-            child: const Text('Done'),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple[600],
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text('Done'),
+                ),
+              ),
+            ],
           ),
         ],
       ),

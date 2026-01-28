@@ -12,7 +12,44 @@
           "package_name": "com.example.resource_finder"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "517336120648-7mgenjuk43qd448b9cu1gh28u7gukkpr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.resource_finder",
+            "certificate_hash": "68392aa382ef6911aa8b7304a4cbf78b3ce1389d"
+          }
+        },
+        {
+          "client_id": "517336120648-8ftn0i5er2q23je0eh06hkdm2m5bdt01.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.resource_finder",
+            "certificate_hash": "b044bce3e9ca90f5b6ae70d7f66d7161646a5a1e"
+          }
+        },
+        {
+          "client_id": "517336120648-c758lvkkjapf5knagnmnqfp2qcqelnir.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.resource_finder",
+            "certificate_hash": "dd968e91877602a68a70f22f02836bb313adf339"
+          }
+        },
+        {
+          "client_id": "517336120648-sbfd954msaio1rli9ncp67ndku5cnipr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.resource_finder",
+            "certificate_hash": "f6ab847d0c09debc30ce1e64a0316d59ff8e59fa"
+          }
+        },
+        {
+          "client_id": "517336120648-qdp8p5ha30dmnv46epkpk2b5c0qheick.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDnYf5U9WHjlRrke7GAKTCSR1GXriUpGUc"
@@ -20,7 +57,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "517336120648-qdp8p5ha30dmnv46epkpk2b5c0qheick.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "517336120648-9if8lqilenvn8g1rpufj6m0n7nq2u0tb.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.resourceFinder"
+              }
+            }
+          ]
         }
       }
     }
