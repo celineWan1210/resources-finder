@@ -115,6 +115,13 @@ class LoginScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   _buildFeatureCard(
+                    icon: Icons.groups,
+                    title: 'Community Resources',
+                    description: 'Browse shared food, shelter, and support',
+                    color: Colors.blue,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildFeatureCard(
                     icon: Icons.people,
                     title: 'Help Your Community',
                     description: 'Make a real difference in lives',

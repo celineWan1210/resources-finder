@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'map_screen.dart';
 import 'contribution_screen.dart';
+import 'community_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -33,10 +34,18 @@ class HomeScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Chip(
-                avatar: const Icon(Icons.person_outline, size: 16, color: Colors.white),
+                avatar: const Icon(
+                  Icons.person_outline,
+                  size: 16,
+                  color: Colors.white,
+                ),
                 label: const Text(
                   'Guest',
-                  style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 backgroundColor: Colors.orange[600],
               ),
@@ -47,7 +56,10 @@ class HomeScreen extends StatelessWidget {
                 backgroundColor: Colors.white.withValues(alpha: 0.3),
                 child: Text(
                   user?.displayName?.substring(0, 1).toUpperCase() ?? 'U',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               onSelected: (value) async {
@@ -73,10 +85,7 @@ class HomeScreen extends StatelessWidget {
                       ),
                       Text(
                         user?.email ?? '',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                       const Divider(),
                     ],
@@ -101,10 +110,7 @@ class HomeScreen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Colors.blue[50]!,
-              Colors.white,
-            ],
+            colors: [Colors.blue[50]!, Colors.white],
           ),
         ),
         child: SafeArea(
@@ -116,7 +122,9 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   // Welcome message
                   Text(
-                    isGuest ? 'Welcome, Guest!' : 'Welcome, ${user?.displayName?.split(' ')[0] ?? 'User'}!',
+                    isGuest
+                        ? 'Welcome, Guest!'
+                        : 'Welcome, ${user?.displayName?.split(' ')[0] ?? 'User'}!',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
@@ -126,10 +134,7 @@ class HomeScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     'How can we help today?',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 32),
 
@@ -145,7 +150,30 @@ class HomeScreen extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const MapScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const MapScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Community Resources Card
+                  _buildActionCard(
+                    context: context,
+                    title: 'Community Resources',
+                    subtitle:
+                        'Browse all community contributions (food, shelter & more)',
+                    icon: Icons.groups,
+                    gradient: LinearGradient(
+                      colors: [Colors.purple[400]!, Colors.purple[600]!],
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CommunityScreen(),
+                        ),
                       );
                     },
                   ),
@@ -155,10 +183,12 @@ class HomeScreen extends StatelessWidget {
                   _buildActionCard(
                     context: context,
                     title: 'Contribute Resources',
-                    subtitle: isGuest 
+                    subtitle: isGuest
                         ? 'Login to share with your community'
                         : 'Share food, shelter, or volunteer time',
-                    icon: isGuest ? Icons.lock_outline : Icons.volunteer_activism,
+                    icon: isGuest
+                        ? Icons.lock_outline
+                        : Icons.volunteer_activism,
                     gradient: isGuest
                         ? LinearGradient(
                             colors: [Colors.grey[400]!, Colors.grey[600]!],
@@ -234,90 +264,90 @@ class HomeScreen extends StatelessWidget {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        height: 220, // Fixed height for cards
-        decoration: BoxDecoration(
-          gradient: gradient,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            // Background pattern
-            Positioned(
-              right: -20,
-              top: -20,
-              child: Icon(
-                icon,
-                size: 120,
-                color: Colors.white.withValues(alpha: 0.1),
+      child: SizedBox(
+        width: double.infinity,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: gradient,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
               ),
-            ),
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(12),
+            ],
+          ),
+          child: Stack(
+            children: [
+              // Background pattern
+              Positioned(
+                right: -20,
+                top: -20,
+                child: Icon(
+                  icon,
+                  size: 120,
+                  color: Colors.white.withValues(alpha: 0.1),
+                ),
+              ),
+              // Content
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(icon, size: 32, color: Colors.white),
                     ),
-                    child: Icon(
-                      icon,
-                      size: 32,
-                      color: Colors.white,
+                    const SizedBox(height: 16),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                    const SizedBox(height: 8),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withValues(alpha: 0.9),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white.withValues(alpha: 0.9),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Text(
-                        isDisabled ? 'Login Required' : 'Tap to continue',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          isDisabled ? 'Login Required' : 'Tap to continue',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white.withValues(alpha: 0.8),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.arrow_forward,
+                          size: 16,
                           color: Colors.white.withValues(alpha: 0.8),
                         ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        Icons.arrow_forward,
-                        size: 16,
-                        color: Colors.white.withValues(alpha: 0.8),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -341,10 +371,7 @@ class HomeScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[600])),
           ),
           ElevatedButton.icon(
             onPressed: () {
