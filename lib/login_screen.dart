@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'translatable_text.dart';
+import 'language_toggle.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -27,24 +29,26 @@ class LoginScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.blue[400]!,
-              Colors.blue[700]!,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
+      body: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.blue[400]!,
+                  Colors.blue[700]!,
+                ],
+              ),
+            ),
+            child: SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
                   // App Icon/Logo
                   Container(
                     padding: const EdgeInsets.all(20),
@@ -68,7 +72,7 @@ class LoginScreen extends StatelessWidget {
                   const SizedBox(height: 40),
 
                   // Welcome Text
-                  const Text(
+                  const TranslatableText(
                     'Welcome to',
                     style: TextStyle(
                       fontSize: 24,
@@ -77,7 +81,7 @@ class LoginScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  const TranslatableText(
                     'Community Resource\nFinder',
                     textAlign: TextAlign.center,
                     style: TextStyle(
@@ -88,7 +92,7 @@ class LoginScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  const TranslatableText(
                     'Connecting those in need with\nthose who can help',
                     textAlign: TextAlign.center,
                     style: TextStyle(
@@ -136,7 +140,7 @@ class LoginScreen extends StatelessWidget {
                           );
                         }
                       },
-                      label: const Text(
+                      label: const TranslatableText(
                         'Sign in with Google',
                         style: TextStyle(
                           fontSize: 18,
@@ -168,7 +172,7 @@ class LoginScreen extends StatelessWidget {
                         Navigator.pushReplacementNamed(context, '/home');
                       },
                       icon: const Icon(Icons.person_outline),
-                      label: const Text(
+                      label: const TranslatableText(
                         'Continue as Guest',
                         style: TextStyle(
                           fontSize: 16,
@@ -209,7 +213,7 @@ class LoginScreen extends StatelessWidget {
                         ),
                         SizedBox(width: 12),
                         Expanded(
-                          child: Text(
+                          child: TranslatableText(
                             'Sign in to contribute resources and save favorites',
                             style: TextStyle(
                               color: Colors.white70,
@@ -220,11 +224,20 @@ class LoginScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-        ),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: SafeArea(
+              child: LanguageToggle(),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -264,7 +277,7 @@ class LoginScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                TranslatableText(
                   title,
                   style: const TextStyle(
                     fontSize: 16,
@@ -273,7 +286,7 @@ class LoginScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
+                TranslatableText(
                   description,
                   style: TextStyle(
                     fontSize: 13,
@@ -288,3 +301,4 @@ class LoginScreen extends StatelessWidget {
     );
   }
 }
+

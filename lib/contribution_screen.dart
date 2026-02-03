@@ -7,7 +7,8 @@ import 'package:intl/intl.dart';
 import 'dart:io';
 import 'services/firestore_service.dart';
 import 'services/location_service.dart';
-
+import 'translatable_text.dart';
+import 'language_toggle.dart';
 
 class ContributionScreen extends StatefulWidget {
   const ContributionScreen({super.key});
@@ -36,7 +37,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
   int _currentView = 0; // 0 = Contribute, 1 = My Contributions
   int _contributionStep = 1; // 1 = Select Category, 2 = Fill Details
   final FirestoreService _firestoreService = FirestoreService();
-  
+
   // Step 1: Category selection
   Set<String> _selectedCategories = {};
   final List<ContributionCategory> _categories = [
@@ -93,7 +94,8 @@ class _ContributionScreenState extends State<ContributionScreen> {
 
   // Step 2: Detail fields
   bool _useCurrentLocation = true;
-  final TextEditingController _manualLocationController = TextEditingController();
+  final TextEditingController _manualLocationController =
+      TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
   final TextEditingController _contactController = TextEditingController();
@@ -110,10 +112,29 @@ class _ContributionScreenState extends State<ContributionScreen> {
 
   // Tags/Categories
   final Map<String, List<String>> _tagsByCategory = {
-    'food': ['Halal', 'Vegetarian', 'Vegan', 'Non-Halal', 'Dry Food', 'Perishable'],
-    'shelter': ['Emergency', 'Short-term', 'Long-term', 'Family-friendly', 'Pet-friendly'],
+    'food': [
+      'Halal',
+      'Vegetarian',
+      'Vegan',
+      'Non-Halal',
+      'Dry Food',
+      'Perishable'
+    ],
+    'shelter': [
+      'Emergency',
+      'Short-term',
+      'Long-term',
+      'Family-friendly',
+      'Pet-friendly'
+    ],
     'clothes': ['Men', 'Women', 'Children', 'Winter', 'Summer'],
-    'hygiene': ['Soap', 'Feminine Products', 'Diapers', 'Toothpaste', 'Deodorant'],
+    'hygiene': [
+      'Soap',
+      'Feminine Products',
+      'Diapers',
+      'Toothpaste',
+      'Deodorant'
+    ],
     'transport': ['Medical', 'Emergency', 'Daily', 'Long-distance'],
     'supplies': ['Blankets', 'School Supplies', 'Bedding', 'Kitchen Items'],
     'volunteer': ['Cooking', 'Packing', 'Cleaning', 'Mentoring', 'Teaching'],
@@ -128,7 +149,8 @@ class _ContributionScreenState extends State<ContributionScreen> {
     final result = await LocationService.getCurrentLocation();
     setState(() {
       _currentLocation = result.location;
-      _currentLocationName = result.locationName ?? LocationService.defaultLocationName;
+      _currentLocationName =
+          result.locationName ?? LocationService.defaultLocationName;
     });
   }
 
@@ -142,14 +164,14 @@ class _ContributionScreenState extends State<ContributionScreen> {
   Future<void> _loadContributions() async {
     final prefs = await SharedPreferences.getInstance();
     final String? contributionsJson = prefs.getString('my_contributions');
-    
+
     if (contributionsJson != null) {
       final List<dynamic> decoded = json.decode(contributionsJson);
       setState(() {
-        _myContributions = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
-        _myContributions.sort((a, b) => 
-          DateTime.parse(b['createdAt']).compareTo(DateTime.parse(a['createdAt']))
-        );
+        _myContributions =
+            decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+        _myContributions.sort((a, b) => DateTime.parse(b['createdAt'])
+            .compareTo(DateTime.parse(a['createdAt'])));
       });
     }
   }
@@ -164,32 +186,35 @@ class _ContributionScreenState extends State<ContributionScreen> {
   Future<void> _saveToGlobalContributions() async {
     final prefs = await SharedPreferences.getInstance();
     final String? globalJson = prefs.getString('global_contributions');
-    
+
     List<Map<String, dynamic>> globalContributions = [];
     if (globalJson != null) {
       final List<dynamic> decoded = json.decode(globalJson);
-      globalContributions = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+      globalContributions =
+          decoded.map((e) => Map<String, dynamic>.from(e)).toList();
     }
-    
+
     // Remove all my contributions first (both active and completed)
     final myIds = _myContributions.map((c) => c['id']).toSet();
     globalContributions.removeWhere((c) => myIds.contains(c['id']));
-    
+
     // Add back only active ones
     for (var contribution in _myContributions) {
       if (contribution['status'] == 'active') {
         globalContributions.add(contribution);
       }
     }
-    
-    await prefs.setString('global_contributions', json.encode(globalContributions));
+
+    await prefs.setString(
+        'global_contributions', json.encode(globalContributions));
   }
 
   void _proceedToDetails() {
     if (_selectedCategories.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select at least one contribution type'),
+          content:
+              TranslatableText('Please select at least one contribution type'),
           backgroundColor: Colors.red,
         ),
       );
@@ -251,7 +276,6 @@ class _ContributionScreenState extends State<ContributionScreen> {
       });
     }
   }
-  
 
   void _submitContribution() async {
     // Refresh location if using current location
@@ -263,11 +287,12 @@ class _ContributionScreenState extends State<ContributionScreen> {
         ? _currentLocationName
         : _manualLocationController.text;
 
-    if (location.isEmpty || _descriptionController.text.isEmpty || 
+    if (location.isEmpty ||
+        _descriptionController.text.isEmpty ||
         _quantityController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please fill in all required fields'),
+          content: TranslatableText('Please fill in all required fields'),
           backgroundColor: Colors.red,
         ),
       );
@@ -280,20 +305,20 @@ class _ContributionScreenState extends State<ContributionScreen> {
 
     if (_selectedCategories.length == 1) {
       if (_selectedCategories.contains('food')) {
-        contributionType = 'food';        // Food only
+        contributionType = 'food'; // Food only
       } else if (_selectedCategories.contains('shelter')) {
-        contributionType = 'shelter';     // Shelter only
+        contributionType = 'shelter'; // Shelter only
       } else {
-        contributionType = 'community';  // Any other single category
+        contributionType = 'community'; // Any other single category
       }
     } else {
       // Multiple categories selected
       if (_selectedCategories.contains('food') &&
           _selectedCategories.contains('shelter') &&
           _selectedCategories.length == 2) {
-        contributionType = 'community';  // Food + Shelter
+        contributionType = 'community'; // Food + Shelter
       } else {
-        contributionType = 'community';  // Any other mix
+        contributionType = 'community'; // Any other mix
       }
     }
 
@@ -318,28 +343,28 @@ class _ContributionScreenState extends State<ContributionScreen> {
       'verified': false,
     };
 
-    
-
     try {
       // Save to Firestore FIRST and get the document ID
       final firestoreId = await _firestoreService.addContribution(contribution);
 
       // ADD THE FIRESTORE ID to the contribution object
       contribution['firestoreId'] = firestoreId;
-      
+
       // Then save locally with the Firestore ID included
       setState(() {
         _myContributions.insert(0, contribution);
       });
 
-      _saveContributions();  
+      _saveContributions();
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('✓ Contribution submitted successfully!'),
+          content:
+              const TranslatableText('✓ Contribution submitted successfully!'),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
 
@@ -350,7 +375,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error saving contribution: $e'),
+          content: TranslatableText('Error saving contribution: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -379,16 +404,18 @@ class _ContributionScreenState extends State<ContributionScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Contribution'),
-        content: const Text('Are you sure you want to delete this contribution?'),
+        title: const TranslatableText('Delete Contribution'),
+        content: const TranslatableText(
+            'Are you sure you want to delete this contribution?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const TranslatableText('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const TranslatableText('Delete',
+                style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -399,23 +426,26 @@ class _ContributionScreenState extends State<ContributionScreen> {
         // Delete from Firestore
         final contribution = _myContributions.firstWhere((c) => c['id'] == id);
         if (contribution['firestoreId'] != null) {
-          await _firestoreService.deleteContribution(contribution['firestoreId']);
+          await _firestoreService
+              .deleteContribution(contribution['firestoreId']);
         }
-        
+
         // Delete locally
         setState(() {
           _myContributions.removeWhere((c) => c['id'] == id);
         });
         await _saveContributions();
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Contribution deleted')),
+            const SnackBar(content: TranslatableText('Contribution deleted')),
           );
         }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error deleting: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: TranslatableText('Error deleting: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -424,15 +454,13 @@ class _ContributionScreenState extends State<ContributionScreen> {
   Future<void> _markAsCompleted(String id) async {
     try {
       final contribution = _myContributions.firstWhere((c) => c['id'] == id);
-      
+
       // Update in Firestore
       if (contribution['firestoreId'] != null) {
         await _firestoreService.updateContributionStatus(
-          contribution['firestoreId'], 
-          'completed'
-        );
+            contribution['firestoreId'], 'completed');
       }
-      
+
       // Update locally
       setState(() {
         final index = _myContributions.indexWhere((c) => c['id'] == id);
@@ -441,15 +469,17 @@ class _ContributionScreenState extends State<ContributionScreen> {
         }
       });
       await _saveContributions();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Marked as completed')),
+          const SnackBar(content: TranslatableText('Marked as completed')),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: TranslatableText('Error: $e'),
+            backgroundColor: Colors.red),
       );
     }
   }
@@ -458,8 +488,11 @@ class _ContributionScreenState extends State<ContributionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Community Contribution'),
+        title: const TranslatableText('Community Contribution'),
         elevation: 0,
+        actions: const [
+          LanguageToggle(),
+        ],
       ),
       body: Column(
         children: [
@@ -475,14 +508,14 @@ class _ContributionScreenState extends State<ContributionScreen> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _buildToggleButton('My Contributions', 1, Icons.list_alt),
+                  child:
+                      _buildToggleButton('My Contributions', 1, Icons.list_alt),
                 ),
               ],
             ),
           ),
-          
           Expanded(
-            child: _currentView == 0 
+            child: _currentView == 0
                 ? _buildContributeFlow()
                 : _buildMyContributions(),
           ),
@@ -505,21 +538,20 @@ class _ContributionScreenState extends State<ContributionScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          TranslatableText(
             'Step 1 of 2: What can you contribute?',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Colors.grey[600],
-            ),
+                  color: Colors.grey[600],
+                ),
           ),
           const SizedBox(height: 8),
-          Text(
+          TranslatableText(
             'Select one or more categories',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 24),
-          
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -534,7 +566,6 @@ class _ContributionScreenState extends State<ContributionScreen> {
               return _buildCategoryCard(_categories[index]);
             },
           ),
-          
           const SizedBox(height: 32),
           SizedBox(
             width: double.infinity,
@@ -548,7 +579,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
+              child: const TranslatableText(
                 'Continue to Details',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
@@ -559,230 +590,232 @@ class _ContributionScreenState extends State<ContributionScreen> {
       ),
     );
   }
-  
-Widget _buildCategoryCard(ContributionCategory category) {
-  final isSelected = _selectedCategories.contains(category.id);
 
-  return GestureDetector(
-    onTap: () {
-      setState(() {
-        if (isSelected) {
-          _selectedCategories.remove(category.id);
-        } else {
-          _selectedCategories.add(category.id);
-        }
-      });
-    },
-    child: Container(
-      padding: const EdgeInsets.all(16),
-      constraints: const BoxConstraints(
-        minHeight: 160, // make the card taller
-      ),
-      decoration: BoxDecoration(
-        color: isSelected ? category.color.withOpacity(0.2) : Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isSelected ? category.color : Colors.grey[300]!,
-          width: isSelected ? 3 : 1,
+  Widget _buildCategoryCard(ContributionCategory category) {
+    final isSelected = _selectedCategories.contains(category.id);
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (isSelected) {
+            _selectedCategories.remove(category.id);
+          } else {
+            _selectedCategories.add(category.id);
+          }
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        constraints: const BoxConstraints(
+          minHeight: 160, // make the card taller
+        ),
+        decoration: BoxDecoration(
+          color:
+              isSelected ? category.color.withOpacity(0.2) : Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? category.color : Colors.grey[300]!,
+            width: isSelected ? 3 : 1,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              category.icon,
+              size: 40,
+              color: category.color,
+            ),
+            const SizedBox(height: 12),
+            TranslatableText(
+              category.label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TranslatableText(
+              category.description,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey[600],
+              ),
+              maxLines: 3, // allow more lines
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 12),
+            if (isSelected)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: category.color,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.check, size: 16, color: Colors.white),
+              ),
+          ],
         ),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            category.icon,
-            size: 40,
-            color: category.color,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            category.label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            category.description,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey[600],
-            ),
-            maxLines: 3, // allow more lines
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 12),
-          if (isSelected)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: category.color,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.check, size: 16, color: Colors.white),
-            ),
-        ],
-      ),
-    ),
-  );
-}
-
-
+    );
+  }
 
   // Generic TextField builder
-Widget _buildTextField({
-  required TextEditingController controller,
-  required String hint,
-  IconData? icon,
-  int maxLines = 1,
-  TextInputType keyboardType = TextInputType.text,
-}) {
-  return TextField(
-    controller: controller,
-    maxLines: maxLines,
-    keyboardType: keyboardType,
-    decoration: InputDecoration(
-      hintText: hint,
-      prefixIcon: icon != null ? Icon(icon) : null,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    IconData? icon,
+    int maxLines = 1,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        hintText: hint,
+        prefixIcon: icon != null ? Icon(icon) : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        filled: true,
+        fillColor: Colors.grey[100],
       ),
-      filled: true,
-      fillColor: Colors.grey[100],
-    ),
-  );
-}
+    );
+  }
 
 // Location section with toggle between current & manual location
-Widget _buildLocationSection() {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(
-        children: [
-          Radio<bool>(
-            value: true,
-            groupValue: _useCurrentLocation,
-            onChanged: (val) => setState(() => _useCurrentLocation = true),
-          ),
-          const Text('Use Current Location'),
-          const SizedBox(width: 16),
-          Radio<bool>(
-            value: false,
-            groupValue: _useCurrentLocation,
-            onChanged: (val) => setState(() => _useCurrentLocation = false),
-          ),
-          const Text('Enter Manually'),
-        ],
-      ),
-      if (!_useCurrentLocation)
-        _buildTextField(
-          controller: _manualLocationController,
-          hint: 'Enter location',
-          icon: Icons.location_on,
+  Widget _buildLocationSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Radio<bool>(
+              value: true,
+              groupValue: _useCurrentLocation,
+              onChanged: (val) => setState(() => _useCurrentLocation = true),
+            ),
+            const TranslatableText('Use Current Location'),
+            const SizedBox(width: 16),
+            Radio<bool>(
+              value: false,
+              groupValue: _useCurrentLocation,
+              onChanged: (val) => setState(() => _useCurrentLocation = false),
+            ),
+            const TranslatableText('Enter Manually'),
+          ],
         ),
-    ],
-  );
-}
+        if (!_useCurrentLocation)
+          _buildTextField(
+            controller: _manualLocationController,
+            hint: 'Enter location',
+            icon: Icons.location_on,
+          ),
+      ],
+    );
+  }
 
 // Availability section with date and time pickers
-Widget _buildAvailabilitySection() {
-  return Column(
-    children: [
-      Row(
-        children: [
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () => _selectDate(context, true),
-              child: Text('Start Date: ${DateFormat('MMM dd, yyyy').format(_startDate)}'),
+  Widget _buildAvailabilitySection() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => _selectDate(context, true),
+                child: TranslatableText(
+                    'Start Date: ${DateFormat('MMM dd, yyyy').format(_startDate)}'),
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () => _selectDate(context, false),
-              child: Text('End Date: ${DateFormat('MMM dd, yyyy').format(_endDate)}'),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => _selectDate(context, false),
+                child: TranslatableText(
+                    'End Date: ${DateFormat('MMM dd, yyyy').format(_endDate)}'),
+              ),
             ),
-          ),
-        ],
-      ),
-      const SizedBox(height: 12),
-      Row(
-        children: [
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () => _selectTime(context, true),
-              child: Text('Start Time: ${_startTime.format(context)}'),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => _selectTime(context, true),
+                child: TranslatableText(
+                    'Start Time: ${_startTime.format(context)}'),
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () => _selectTime(context, false),
-              child: Text('End Time: ${_endTime.format(context)}'),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => _selectTime(context, false),
+                child:
+                    TranslatableText('End Time: ${_endTime.format(context)}'),
+              ),
             ),
-          ),
-        ],
-      ),
-    ],
-  );
-}
+          ],
+        ),
+      ],
+    );
+  }
 
 // Tags / category selection
-Widget _buildTagsSection() {
-  List<String> allTags = [];
-  for (var catId in _selectedCategories) {
-    allTags.addAll(_tagsByCategory[catId] ?? []);
-  }
-  allTags = allTags.toSet().toList(); // remove duplicates
+  Widget _buildTagsSection() {
+    List<String> allTags = [];
+    for (var catId in _selectedCategories) {
+      allTags.addAll(_tagsByCategory[catId] ?? []);
+    }
+    allTags = allTags.toSet().toList(); // remove duplicates
 
-  return Wrap(
-    spacing: 8,
-    children: allTags.map((tag) {
-      final isSelected = _selectedTags.contains(tag);
-      return FilterChip(
-        label: Text(tag),
-        selected: isSelected,
-        onSelected: (selected) {
-          setState(() {
-            if (selected) {
-              _selectedTags.add(tag);
-            } else {
-              _selectedTags.remove(tag);
-            }
-          });
-        },
-      );
-    }).toList(),
-  );
-}
+    return Wrap(
+      spacing: 8,
+      children: allTags.map((tag) {
+        final isSelected = _selectedTags.contains(tag);
+        return FilterChip(
+          label: TranslatableText(tag),
+          selected: isSelected,
+          onSelected: (selected) {
+            setState(() {
+              if (selected) {
+                _selectedTags.add(tag);
+              } else {
+                _selectedTags.remove(tag);
+              }
+            });
+          },
+        );
+      }).toList(),
+    );
+  }
 
 // Image picker / upload
-Widget _buildImageUpload() {
-  return GestureDetector(
-    onTap: _pickImage,
-    child: Container(
-      height: 120,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[300]!),
-        color: Colors.grey[100],
+  Widget _buildImageUpload() {
+    return GestureDetector(
+      onTap: _pickImage,
+      child: Container(
+        height: 120,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[300]!),
+          color: Colors.grey[100],
+        ),
+        child: _selectedImage == null
+            ? const Icon(Icons.camera_alt, size: 50, color: Colors.grey)
+            : Image.file(
+                File(_selectedImage!.path),
+                fit: BoxFit.cover,
+              ),
       ),
-      child: _selectedImage == null
-          ? const Icon(Icons.camera_alt, size: 50, color: Colors.grey)
-          : Image.file(
-              File(_selectedImage!.path),
-              fit: BoxFit.cover,
-            ),
-    ),
-  );
-}
-
+    );
+  }
 
   Widget _buildContributionDetails() {
     return SingleChildScrollView(
@@ -790,29 +823,27 @@ Widget _buildImageUpload() {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          TranslatableText(
             'Step 2 of 2: Fill in the details',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Colors.grey[600],
-            ),
+                  color: Colors.grey[600],
+                ),
           ),
           const SizedBox(height: 8),
-          
           Wrap(
             spacing: 8,
             children: _selectedCategories.map((catId) {
               final category = _categories.firstWhere((c) => c.id == catId);
               return Chip(
-                label: Text(category.label),
+                label: TranslatableText(category.label),
                 backgroundColor: category.color.withOpacity(0.3),
                 deleteIcon: const Icon(Icons.edit),
                 onDeleted: _goBackToSelection,
               );
             }).toList(),
           ),
-          
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Details *',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -823,7 +854,6 @@ Widget _buildImageUpload() {
             maxLines: 3,
             icon: Icons.description,
           ),
-          
           const SizedBox(height: 16),
           _buildTextField(
             controller: _quantityController,
@@ -831,33 +861,29 @@ Widget _buildImageUpload() {
             icon: Icons.numbers,
             keyboardType: TextInputType.number,
           ),
-          
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Location',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           _buildLocationSection(),
-          
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Availability',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           _buildAvailabilitySection(),
-          
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Categories (Optional)',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           _buildTagsSection(),
-          
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Contact Information (Optional)',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -868,15 +894,13 @@ Widget _buildImageUpload() {
             icon: Icons.contact_phone,
             keyboardType: TextInputType.phone,
           ),
-          
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Photo (Optional)',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           _buildImageUpload(),
-          
           const SizedBox(height: 32),
           Row(
             children: [
@@ -889,7 +913,7 @@ Widget _buildImageUpload() {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('Back'),
+                  child: const TranslatableText('Back'),
                 ),
               ),
               const SizedBox(width: 16),
@@ -904,7 +928,7 @@ Widget _buildImageUpload() {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
+                  child: const TranslatableText(
                     'Submit',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
@@ -926,7 +950,7 @@ Widget _buildImageUpload() {
           children: [
             Icon(Icons.inbox, size: 80, color: Colors.grey[400]),
             const SizedBox(height: 16),
-            Text(
+            TranslatableText(
               'No contributions yet',
               style: TextStyle(fontSize: 18, color: Colors.grey[600]),
             ),
@@ -982,9 +1006,9 @@ Widget _buildImageUpload() {
     final filteredList = type == null
         ? _myContributions
         : _myContributions.where((c) => c['type'] == type).toList();
-    
+
     return FilterChip(
-      label: Text('$label (${filteredList.length})'),
+      label: TranslatableText('$label (${filteredList.length})'),
       selected: isSelected,
       onSelected: (selected) {
         setState(() {
@@ -1002,7 +1026,7 @@ Widget _buildImageUpload() {
     final endDate = DateTime.parse(contribution['endDate']);
     final createdAt = DateTime.parse(contribution['createdAt']);
     final categories = List<String>.from(contribution['categories'] ?? []);
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
@@ -1030,15 +1054,16 @@ Widget _buildImageUpload() {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      TranslatableText(
                         categories.join(', '),
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: isActive ? Colors.green[900] : Colors.grey[700],
+                          color:
+                              isActive ? Colors.green[900] : Colors.grey[700],
                         ),
                       ),
-                      Text(
+                      TranslatableText(
                         'Posted ${DateFormat('MMM dd, yyyy').format(createdAt)}',
                         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
@@ -1046,12 +1071,13 @@ Widget _buildImageUpload() {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: isActive ? Colors.green : Colors.grey,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Text(
+                  child: TranslatableText(
                     isActive ? 'ACTIVE' : 'COMPLETED',
                     style: const TextStyle(
                       color: Colors.white,
@@ -1063,7 +1089,6 @@ Widget _buildImageUpload() {
               ],
             ),
           ),
-          
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -1071,7 +1096,8 @@ Widget _buildImageUpload() {
               children: [
                 _buildInfoRow(Icons.description, contribution['description']),
                 const SizedBox(height: 8),
-                _buildInfoRow(Icons.numbers, '${contribution['quantity']} items'),
+                _buildInfoRow(
+                    Icons.numbers, '${contribution['quantity']} items'),
                 const SizedBox(height: 8),
                 _buildInfoRow(Icons.location_on, contribution['location']),
                 const SizedBox(height: 8),
@@ -1084,12 +1110,11 @@ Widget _buildImageUpload() {
                   Icons.access_time,
                   '${contribution['startTime']} - ${contribution['endTime']}',
                 ),
-                
-                if (contribution['contact'] != null && contribution['contact'].isNotEmpty) ...[
+                if (contribution['contact'] != null &&
+                    contribution['contact'].isNotEmpty) ...[
                   const SizedBox(height: 8),
                   _buildInfoRow(Icons.phone, contribution['contact']),
                 ],
-                
                 if ((contribution['tags'] as List).isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Wrap(
@@ -1097,7 +1122,8 @@ Widget _buildImageUpload() {
                     runSpacing: 8,
                     children: (contribution['tags'] as List).map((tag) {
                       return Chip(
-                        label: Text(tag, style: const TextStyle(fontSize: 12)),
+                        label: TranslatableText(tag,
+                            style: const TextStyle(fontSize: 12)),
                         backgroundColor: Colors.blue[50],
                         padding: const EdgeInsets.all(4),
                       );
@@ -1107,7 +1133,6 @@ Widget _buildImageUpload() {
               ],
             ),
           ),
-          
           if (isActive)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -1117,7 +1142,7 @@ Widget _buildImageUpload() {
                     child: OutlinedButton.icon(
                       onPressed: () => _markAsCompleted(contribution['id']),
                       icon: const Icon(Icons.check_circle, size: 18),
-                      label: const Text('Mark Complete'),
+                      label: const TranslatableText('Mark Complete'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.green,
                       ),
@@ -1128,7 +1153,7 @@ Widget _buildImageUpload() {
                     child: OutlinedButton.icon(
                       onPressed: () => _deleteContribution(contribution['id']),
                       icon: const Icon(Icons.delete, size: 18),
-                      label: const Text('Delete'),
+                      label: const TranslatableText('Delete'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.red,
                       ),
@@ -1149,7 +1174,7 @@ Widget _buildImageUpload() {
         Icon(icon, size: 18, color: Colors.grey[600]),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
+          child: TranslatableText(
             text,
             style: const TextStyle(fontSize: 14),
           ),
@@ -1163,9 +1188,10 @@ Widget _buildImageUpload() {
     return ElevatedButton.icon(
       onPressed: () => setState(() => _currentView = index),
       icon: Icon(icon, size: 20),
-      label: Text(label, style: const TextStyle(fontSize: 14)),
+      label: TranslatableText(label, style: const TextStyle(fontSize: 14)),
       style: ElevatedButton.styleFrom(
-        backgroundColor: isSelected ? Theme.of(context).primaryColor : Colors.grey[300],
+        backgroundColor:
+            isSelected ? Theme.of(context).primaryColor : Colors.grey[300],
         foregroundColor: isSelected ? Colors.white : Colors.black87,
         padding: const EdgeInsets.symmetric(vertical: 12),
         elevation: isSelected ? 2 : 0,

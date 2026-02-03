@@ -10,6 +10,8 @@ import 'package:intl/intl.dart';
 import 'services/firestore_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'services/location_service.dart';
+import 'translatable_text.dart';
+import 'language_toggle.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -178,7 +180,7 @@ class _MapScreenState extends State<MapScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not load contributions'),
+            content: TranslatableText('Could not load contributions'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -384,7 +386,7 @@ class _MapScreenState extends State<MapScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Expanded(
-                          child: Text(
+                          child: TranslatableText(
                             place.name,
                             style: const TextStyle(
                               fontSize: 22,
@@ -422,7 +424,7 @@ class _MapScreenState extends State<MapScreen> {
                             color: place.isOpen ? Colors.green : Colors.red,
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: Text(
+                          child: TranslatableText(
                             place.isOpen ? 'Open Now' : 'Closed',
                             style: const TextStyle(
                               color: Colors.white,
@@ -434,7 +436,7 @@ class _MapScreenState extends State<MapScreen> {
                           const SizedBox(width: 10),
                           Icon(Icons.star, color: Colors.amber, size: 20),
                           const SizedBox(width: 4),
-                          Text(
+                          TranslatableText(
                             '${place.rating} (${place.userRatingsTotal ?? 0})',
                             style: const TextStyle(
                               fontSize: 16,
@@ -501,7 +503,7 @@ class _MapScreenState extends State<MapScreen> {
                         children: const [
                           Icon(Icons.access_time, color: Colors.grey),
                           SizedBox(width: 10),
-                          Text(
+                          TranslatableText(
                             'Opening Hours',
                             style: TextStyle(
                               fontSize: 16,
@@ -511,7 +513,7 @@ class _MapScreenState extends State<MapScreen> {
                         ],
                       ),
                       const SizedBox(height: 10),
-                      Text(
+                      TranslatableText(
                         place.openingHours!,
                         style: const TextStyle(fontSize: 14),
                       ),
@@ -549,7 +551,7 @@ class _MapScreenState extends State<MapScreen> {
                               }
                             },
                             icon: const Icon(Icons.map),
-                            label: const Text('Show on Map'),
+                            label: const TranslatableText('Show on Map'),
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.all(15),
                             ),
@@ -560,7 +562,7 @@ class _MapScreenState extends State<MapScreen> {
                           child: ElevatedButton.icon(
                             onPressed: () => _openDirections(place.lat, place.lng),
                             icon: const Icon(Icons.directions),
-                            label: const Text('Directions'),
+                            label: const TranslatableText('Directions'),
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.all(15),
                               backgroundColor: Colors.blue,
@@ -620,14 +622,14 @@ class _MapScreenState extends State<MapScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            const TranslatableText(
                               'Community Contribution',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey,
                               ),
                             ),
-                            Text(
+                            TranslatableText(
                               contribution['type'],
                               style: const TextStyle(
                                 fontSize: 22,
@@ -646,7 +648,7 @@ class _MapScreenState extends State<MapScreen> {
                           color: Colors.green,
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Text(
+                        child: const TranslatableText(
                           'ACTIVE',
                           style: TextStyle(
                             color: Colors.white,
@@ -668,7 +670,7 @@ class _MapScreenState extends State<MapScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        TranslatableText(
                           contribution['description'],
                           style: const TextStyle(
                             fontSize: 16,
@@ -723,7 +725,7 @@ class _MapScreenState extends State<MapScreen> {
 
                   if ((contribution['tags'] as List).isNotEmpty) ...[
                     const SizedBox(height: 20),
-                    const Text(
+                    const TranslatableText(
                       'Categories',
                       style: TextStyle(
                         fontSize: 16,
@@ -736,7 +738,7 @@ class _MapScreenState extends State<MapScreen> {
                       runSpacing: 8,
                       children: (contribution['tags'] as List).map((tag) {
                         return Chip(
-                          label: Text(tag, style: const TextStyle(fontSize: 12)),
+                          label: TranslatableText(tag, style: const TextStyle(fontSize: 12)),
                           backgroundColor: Colors.purple[50],
                           padding: const EdgeInsets.all(4),
                         );
@@ -776,7 +778,7 @@ class _MapScreenState extends State<MapScreen> {
                             }
                           },
                           icon: const Icon(Icons.map),
-                          label: const Text('Show on Map'),
+                          label: const TranslatableText('Show on Map'),
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.all(15),
                           ),
@@ -787,7 +789,7 @@ class _MapScreenState extends State<MapScreen> {
                         child: ElevatedButton.icon(
                           onPressed: () => _openDirections(place.lat, place.lng),
                           icon: const Icon(Icons.directions),
-                          label: const Text('Directions'),
+                          label: const TranslatableText('Directions'),
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.all(15),
                             backgroundColor: Colors.blue,
@@ -817,7 +819,7 @@ class _MapScreenState extends State<MapScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                TranslatableText(
                   label,
                   style: const TextStyle(
                     fontSize: 12,
@@ -825,7 +827,7 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
+                TranslatableText(
                   value,
                   style: TextStyle(
                     fontSize: 16,
@@ -894,7 +896,7 @@ class _MapScreenState extends State<MapScreen> {
           children: [
             const Icon(Icons.search_off, size: 64, color: Colors.grey),
             const SizedBox(height: 16),
-            Text(
+            TranslatableText(
               _showContributionsOnly 
                   ? 'No community contributions yet' 
                   : _statusMessage,
@@ -930,7 +932,7 @@ class _MapScreenState extends State<MapScreen> {
                 color: Colors.white,
               ),
             ),
-            title: Text(
+            title: TranslatableText(
               place.name,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
@@ -941,7 +943,7 @@ class _MapScreenState extends State<MapScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 5),
-                Text(place.address),
+                TranslatableText(place.address),
                 const SizedBox(height: 5),
                 Row(
                   children: [
@@ -951,7 +953,7 @@ class _MapScreenState extends State<MapScreen> {
                       color: Colors.blue,
                     ),
                     const SizedBox(width: 5),
-                    Text(
+                    TranslatableText(
                       _formatDistance(place.distance),
                       style: const TextStyle(
                         color: Colors.blue,
@@ -970,7 +972,7 @@ class _MapScreenState extends State<MapScreen> {
                             : place.isOpen ? Colors.green : Colors.red,
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Text(
+                      child: TranslatableText(
                         place.isContribution 
                             ? 'Contribution' 
                             : place.isOpen ? 'Open' : 'Closed',
@@ -1007,8 +1009,9 @@ class _MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isMapView ? "Map View" : "List View"),
+        title: TranslatableText(_isMapView ? "Map View" : "List View"),
         actions: [
+          const LanguageToggle(),
           IconButton(
             icon: Icon(_isMapView ? Icons.list : Icons.map),
             tooltip: _isMapView ? 'List View' : 'Map View',
@@ -1053,7 +1056,7 @@ class _MapScreenState extends State<MapScreen> {
                       color: Colors.purple,
                     ),
                     const SizedBox(width: 8),
-                    const Text('Show Contributions Only'),
+                    const TranslatableText('Show Contributions Only'),
                   ],
                 ),
               ),
@@ -1063,7 +1066,7 @@ class _MapScreenState extends State<MapScreen> {
                   children: [
                     Icon(Icons.favorite, color: Colors.red),
                     SizedBox(width: 8),
-                    Text('Filter Favorites'),
+                    TranslatableText('Filter Favorites'),
                   ],
                 ),
               ),
@@ -1127,7 +1130,7 @@ class _MapScreenState extends State<MapScreen> {
                           color: Colors.grey,
                         ),
                         const SizedBox(height: 10),
-                        Text(
+                        TranslatableText(
                           _statusMessage,
                           textAlign: TextAlign.center,
                           style: const TextStyle(fontSize: 16),
@@ -1156,7 +1159,7 @@ class _MapScreenState extends State<MapScreen> {
                         ),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: Text(
+                          child: TranslatableText(
                             _statusMessage,
                             textAlign: TextAlign.center,
                             style: const TextStyle(
@@ -1182,7 +1185,7 @@ class _MapScreenState extends State<MapScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
+                      const TranslatableText(
                         'Legend:',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
@@ -1191,7 +1194,7 @@ class _MapScreenState extends State<MapScreen> {
                         children: const [
                           Icon(Icons.location_on, color: Colors.orange, size: 20),
                           SizedBox(width: 8),
-                          Text('Food Banks', style: TextStyle(fontSize: 12)),
+                          TranslatableText('Food Banks', style: TextStyle(fontSize: 12)),
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -1199,7 +1202,7 @@ class _MapScreenState extends State<MapScreen> {
                         children: const [
                           Icon(Icons.location_on, color: Colors.purple, size: 20),
                           SizedBox(width: 8),
-                          Text('Contributions', style: TextStyle(fontSize: 12)),
+                          TranslatableText('Contributions', style: TextStyle(fontSize: 12)),
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -1207,7 +1210,7 @@ class _MapScreenState extends State<MapScreen> {
                         children: const [
                           Icon(Icons.location_on, color: Colors.red, size: 20),
                           SizedBox(width: 8),
-                          Text('Favorites', style: TextStyle(fontSize: 12)),
+                          TranslatableText('Favorites', style: TextStyle(fontSize: 12)),
                         ],
                       ),
                     ],
