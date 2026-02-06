@@ -3,7 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
-import 'dart:html' as html;
+import 'package:resource_finder/screens/stub_csv_download.dart'
+    if (dart.library.html) 'package:resource_finder/utils/web_csv_download.dart';
 
 class ModeratorDashboard extends StatefulWidget {
   const ModeratorDashboard({super.key});
@@ -155,14 +156,8 @@ class _ModeratorDashboardState extends State<ModeratorDashboard> {
       final filename = '${collection}_moderation_report_$timestamp.csv';
       
       // Create blob and trigger download
-      final bytes = utf8.encode(csvContent);
-      final blob = html.Blob([bytes]);
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url)
-        ..setAttribute('download', filename)
-        ..click();
-      html.Url.revokeObjectUrl(url);
-      
+      downloadCsv(filename, csvContent);
+            
       _showSnackBar('✓ Downloaded: $filename (${csvRows.length - 1} records)', Colors.green);
       
     } catch (e) {
