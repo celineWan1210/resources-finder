@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'map_screen.dart' as map;
 import 'contribution_screen.dart' as contrib;
-import 'profile_screen.dart'; 
+import 'profile_screen.dart';
 import 'community_screen.dart' as community;
 import 'request_help_screen.dart';
 
@@ -12,7 +12,6 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Check if user is logged in or guest
     final user = FirebaseAuth.instance.currentUser;
     final bool isGuest = user == null;
 
@@ -120,10 +119,7 @@ class HomeScreen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Colors.blue[50]!,
-              Colors.white,
-            ],
+            colors: [Colors.blue[50]!, Colors.white],
           ),
         ),
         child: SafeArea(
@@ -133,30 +129,57 @@ class HomeScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Welcome message
                   Text(
                     isGuest ? 'Welcome, Guest!' : 'Welcome, ${user.displayName?.split(' ')[0] ?? 'User'}!',
                     style: TextStyle(
-                      fontSize: 28,
+                      fontSize: 26,
                       fontWeight: FontWeight.bold,
                       color: Colors.grey[800],
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
-                    'How can we help today?',
+                    'Find help or share resources in your community.',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       color: Colors.grey[600],
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 16),
 
-                  // Food Banks Card
+                  if (isGuest)
+                    _buildGuestBanner(context),
+
+                  const SizedBox(height: 10),
+
+                  Text(
+                    'Quick Actions',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildQuickActions(context),
+
+                  const SizedBox(height: 20),
+
+                  Text(
+                    'Find Resources',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
                   _buildActionCard(
                     context: context,
-                    title: 'Find Food Banks',
-                    subtitle: 'Food banks and AI-verified food contributions',
+                    title: 'Food Banks',
+                    subtitle: 'AI‑verified food resources near you',
+                    actionLabel: 'Open map',
                     icon: Icons.restaurant_menu,
                     gradient: LinearGradient(
                       colors: [Colors.orange[400]!, Colors.orange[600]!],
@@ -168,16 +191,16 @@ class HomeScreen extends StatelessWidget {
                       );
                     },
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 14),
 
-                  //Shelter Card
                   _buildActionCard(
                     context: context,
-                    title: 'Find Shelters',
-                    subtitle: 'Shelters and AI-verified shelter contributions',
+                    title: 'Shelters',
+                    subtitle: 'Safe shelter locations and updates',
+                    actionLabel: 'Open map',
                     icon: Icons.home_filled,
                     gradient: const LinearGradient(
-                      colors: [Color.fromARGB(128, 233, 30, 98), Color.fromARGB(175, 233, 30, 98)],
+                      colors: [Color.fromARGB(160, 233, 30, 99), Color.fromARGB(200, 233, 30, 99)],
                     ),
                     onTap: () {
                       Navigator.push(
@@ -186,13 +209,13 @@ class HomeScreen extends StatelessWidget {
                       );
                     },
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 14),
 
-                  // Find Others Card
                   _buildActionCard(
                     context: context,
-                    title: 'Find Others',
-                    subtitle: 'Browse all community-shared resources',
+                    title: 'Community Resources',
+                    subtitle: 'Browse all shared resources',
+                    actionLabel: 'Browse list',
                     icon: Icons.groups,
                     gradient: LinearGradient(
                       colors: [Colors.purple[400]!, Colors.purple[600]!],
@@ -204,23 +227,30 @@ class HomeScreen extends StatelessWidget {
                       );
                     },
                   ),
-                  const SizedBox(height: 20),
-                  
-                  // Contribute Card
+
+                  const SizedBox(height: 24),
+
+                  Text(
+                    'Contribute',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
                   _buildActionCard(
                     context: context,
-                    title: 'Contribute Resources',
-                    subtitle: isGuest 
-                        ? 'Login to share with your community'
-                        : 'Share food, shelter, or other resources (AI moderated)',
+                    title: 'Share Resources',
+                    subtitle: isGuest
+                        ? 'Sign in to share with your community'
+                        : 'Post food, shelter, or help offers',
+                    actionLabel: isGuest ? 'Sign in' : 'Share now',
                     icon: isGuest ? Icons.lock_outline : Icons.volunteer_activism,
                     gradient: isGuest
-                        ? LinearGradient(
-                            colors: [Colors.grey[400]!, Colors.grey[600]!],
-                          )
-                        : LinearGradient(
-                            colors: [Colors.green[400]!, Colors.green[600]!],
-                          ),
+                        ? LinearGradient(colors: [Colors.grey[400]!, Colors.grey[600]!])
+                        : LinearGradient(colors: [Colors.green[400]!, Colors.green[600]!]),
                     isDisabled: isGuest,
                     onTap: () {
                       if (isGuest) {
@@ -228,30 +258,34 @@ class HomeScreen extends StatelessWidget {
                       } else {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => const contrib.ContributionScreen(),
-                          ),
+                          MaterialPageRoute(builder: (context) => const contrib.ContributionScreen()),
                         );
                       }
                     },
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 14),
 
-                  // Request Help Card
+                  Text(
+                    'Need Help',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
                   _buildActionCard(
                     context: context,
                     title: 'Request Help',
                     subtitle: isGuest
-                        ? 'Login to request assistance'
-                        : 'Submit a request for food, shelter, or other needs',
+                        ? 'Sign in to request assistance'
+                        : 'Ask for food, shelter, or support',
+                    actionLabel: isGuest ? 'Sign in' : 'Request now',
                     icon: isGuest ? Icons.lock_outline : Icons.help_outline,
                     gradient: isGuest
-                        ? LinearGradient(
-                            colors: [Colors.grey[400]!, Colors.grey[600]!],
-                          )
-                        : LinearGradient(
-                            colors: [Colors.red[400]!, Colors.red[600]!],
-                          ),
+                        ? LinearGradient(colors: [Colors.grey[400]!, Colors.grey[600]!])
+                        : LinearGradient(colors: [Colors.red[400]!, Colors.red[600]!]),
                     isDisabled: isGuest,
                     onTap: () {
                       if (isGuest) {
@@ -259,109 +293,194 @@ class HomeScreen extends StatelessWidget {
                       } else {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => const RequestHelpScreen(),
-                          ),
+                          MaterialPageRoute(builder: (context) => const RequestHelpScreen()),
                         );
                       }
                     },
                   ),
-                  const SizedBox(height: 20),
 
-                  // How it works section
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.info_outline, color: Colors.blue[700], size: 24),
-                            const SizedBox(width: 12),
-                            Text(
-                              'How It Works',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey[800],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        _buildInfoRow(
-                          icon: Icons.map,
-                          color: Colors.orange,
-                          title: 'Find Resources',
-                          description: 'Browse food banks and shelters on separate maps',
-                        ),
-                        const SizedBox(height: 12),
-                        _buildInfoRow(
-                          icon: Icons.verified,
-                          color: Colors.purple,
-                          title: 'AI Verified',
-                          description: 'Community contributions are checked by AI for safety',
-                        ),
-                        const SizedBox(height: 12),
-                        _buildInfoRow(
-                          icon: Icons.volunteer_activism,
-                          color: Colors.green,
-                          title: 'Contribute',
-                          description: 'Share food, shelter, or volunteer opportunities',
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
-                  // Info banner for guests
-                  if (isGuest)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      margin: const EdgeInsets.only(bottom: 20),
-                      decoration: BoxDecoration(
-                        color: Colors.orange[50],
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.orange[200]!),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.info_outline, color: Colors.orange[700]),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Sign in to contribute resources and save favorites',
-                              style: TextStyle(
-                                color: Colors.orange[900],
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.pushReplacementNamed(context, '/login');
-                            },
-                            child: const Text('Sign In'),
-                          ),
-                        ],
-                      ),
-                    ),
+                  _buildHowItWorks(),
                 ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildGuestBanner(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.orange[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange[200]!),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: Colors.orange[700]),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'You are in Guest Mode. Sign in to share resources and request help.',
+              style: TextStyle(
+                color: Colors.orange[900],
+                fontSize: 13,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pushReplacementNamed(context, '/login');
+            },
+            child: const Text('Sign In'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActions(BuildContext context) {
+    return Row(
+      children: [
+        _quickAction(
+          context: context,
+          label: 'Food',
+          icon: Icons.restaurant_menu,
+          color: Colors.orange,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const map.MapScreen(locationType: 'foodbank')),
+            );
+          },
+        ),
+        const SizedBox(width: 10),
+        _quickAction(
+          context: context,
+          label: 'Shelters',
+          icon: Icons.home_filled,
+          color: Colors.pink,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const map.MapScreen(locationType: 'shelter')),
+            );
+          },
+        ),
+        const SizedBox(width: 10),
+        _quickAction(
+          context: context,
+          label: 'Help',
+          icon: Icons.help_outline,
+          color: Colors.red,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const RequestHelpScreen()),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _quickAction({
+    required BuildContext context,
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: Semantics(
+        label: label,
+        button: true,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              children: [
+                Icon(icon, color: color),
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHowItWorks() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.blue[700], size: 24),
+              const SizedBox(width: 12),
+              Text(
+                'How It Works',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildInfoRow(
+            icon: Icons.map,
+            color: Colors.orange,
+            title: 'Find Resources',
+            description: 'Browse food banks and shelters on dedicated maps',
+          ),
+          const SizedBox(height: 12),
+          _buildInfoRow(
+            icon: Icons.verified,
+            color: Colors.purple,
+            title: 'AI Verified',
+            description: 'Community contributions are checked for safety',
+          ),
+          const SizedBox(height: 12),
+          _buildInfoRow(
+            icon: Icons.volunteer_activism,
+            color: Colors.green,
+            title: 'Contribute',
+            description: 'Share food, shelter, or volunteer opportunities',
+          ),
+        ],
       ),
     );
   }
@@ -415,97 +534,109 @@ class HomeScreen extends StatelessWidget {
     required BuildContext context,
     required String title,
     required String subtitle,
+    required String actionLabel,
     required IconData icon,
     required Gradient gradient,
     required VoidCallback onTap,
     bool isDisabled = false,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 240, // Fixed height for cards
-        decoration: BoxDecoration(
-          gradient: gradient,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            // Background pattern
-            Positioned(
-              right: -20,
-              top: -20,
-              child: Icon(
-                icon,
-                size: 120,
-                color: Colors.white.withValues(alpha: 0.1),
+    return Semantics(
+      label: title,
+      button: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 220,
+          decoration: BoxDecoration(
+            gradient: gradient,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
               ),
-            ),
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(12),
+            ],
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                right: -20,
+                top: -20,
+                child: Icon(
+                  icon,
+                  size: 110,
+                  color: Colors.white.withValues(alpha: 0.12),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        icon,
+                        size: 28,
+                        color: Colors.white,
+                      ),
                     ),
-                    child: Icon(
-                      icon,
-                      size: 32,
-                      color: Colors.white,
+                    const SizedBox(height: 12),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                    const SizedBox(height: 6),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.white.withValues(alpha: 0.95),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white.withValues(alpha: 0.9),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Text(
-                        isDisabled ? 'Login Required' : 'Tap to continue',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white.withValues(alpha: 0.8),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Text(
+                          actionLabel,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withValues(alpha: 0.9),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        Icons.arrow_forward,
-                        size: 16,
-                        color: Colors.white.withValues(alpha: 0.8),
-                      ),
-                    ],
-                  ),
-                ],
+                        const SizedBox(width: 6),
+                        Icon(
+                          Icons.arrow_forward,
+                          size: 16,
+                          color: Colors.white.withValues(alpha: 0.9),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              if (isDisabled)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -554,5 +685,4 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
-
 }
