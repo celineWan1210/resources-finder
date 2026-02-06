@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import 'dart:convert';
-import 'package:resource_finder/screens/stub_csv_download.dart'
-    if (dart.library.html) 'package:resource_finder/utils/web_csv_download.dart';
 
 class ModeratorDashboard extends StatefulWidget {
   const ModeratorDashboard({super.key});
@@ -39,6 +36,16 @@ class _ModeratorDashboardState extends State<ModeratorDashboard> {
   void initState() {
     super.initState();
     _loadStats();
+  }
+
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   Future<void> _loadStats() async {
@@ -102,85 +109,13 @@ class _ModeratorDashboardState extends State<ModeratorDashboard> {
       debugPrint('Error loading stats: $e');
     }
   }
-  Future<void> _exportToCSV() async {
-    try {
-      final collection = _currentTab == 0 ? 'contributions' : 'help_requests';
-      final snapshot = await _firestore
-          .collection(collection)
-          .orderBy('createdAt', descending: true)
-          .limit(1000)
-          .get();
-
-      if (snapshot.docs.isEmpty) {
-        _showSnackBar('No data to export', Colors.orange);
-        return;
-      }
-
-      final csvRows = <String>[];
-      csvRows.add('Timestamp,ID,User Email,Description,Status,Risk Score,Reason');
-
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        DateTime createdAt;
-        try {
-          if (data['createdAt'] is Timestamp) {
-            createdAt = (data['createdAt'] as Timestamp).toDate();
-          } else if (data['createdAt'] is String) {
-            createdAt = DateTime.parse(data['createdAt']);
-          } else {
-            createdAt = DateTime.now();
-          }
-        } catch (e) {
-          createdAt = DateTime.now();
-        }
-        
-        final description = (data['description'] ?? data['quantity'] ?? 'N/A').replaceAll('"', '""');
-        final reason = (data['moderationReason'] ?? 'N/A').replaceAll('"', '""');
-        
-        final row = [
-          DateFormat('yyyy-MM-dd HH:mm:ss').format(createdAt),
-          doc.id,
-          data['userEmail'] ?? 'N/A',
-          '"$description"',
-          data['moderationStatus'] ?? 'unknown',
-          data['riskScore'] ?? 'N/A',
-          '"$reason"',
-        ];
-        csvRows.add(row.join(','));
-      }
-
-      final csvContent = csvRows.join('\n');
-      
-      // Generate filename with timestamp
-      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final filename = '${collection}_moderation_report_$timestamp.csv';
-      
-      // Create blob and trigger download
-      downloadCsv(filename, csvContent);
-            
-      _showSnackBar('✓ Downloaded: $filename (${csvRows.length - 1} records)', Colors.green);
-      
-    } catch (e) {
-      _showSnackBar('Error exporting CSV: $e', Colors.red);
-    }
-  }
-
-  void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
+  
   Future<void> _logout() async {
     await _auth.signOut();
     if (mounted) {
       Navigator.of(context).pushReplacementNamed('/login');
     }
-  }
+  }  
 
   @override
   Widget build(BuildContext context) {
@@ -217,22 +152,6 @@ class _ModeratorDashboardState extends State<ModeratorDashboard> {
         elevation: 4,
         shadowColor: Colors.indigo.withOpacity(0.5),
         actions: [
-          // LARGER, MORE VISIBLE BUTTONS
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-            child: ElevatedButton.icon(
-              onPressed: _exportToCSV,
-              icon: const Icon(Icons.download, size: 20),
-              label: const Text('Export CSV'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green[600],
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                elevation: 2,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
           Container(
             margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
             child: ElevatedButton.icon(
