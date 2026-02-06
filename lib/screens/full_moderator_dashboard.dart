@@ -535,7 +535,7 @@ class _ModeratorDashboardState extends State<ModeratorDashboard> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Are you sure you want to ${action} this contribution?'),
+            Text('Are you sure you want to $action this contribution?'),
             const SizedBox(height: 16),
             TextField(
               controller: notesController,

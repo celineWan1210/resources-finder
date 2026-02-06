@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:math';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -525,9 +526,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           ElevatedButton.icon(
-            onPressed: () async {
+            onPressed: () {
               Navigator.pop(context);
-              await _requestVerificationCode(context, user);
+              _requestVerificationCode(context, user);
             },
             icon: const Icon(Icons.generating_tokens, size: 18),
             label: const Text('Generate Code'),
@@ -546,32 +547,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _requestVerificationCode(BuildContext context, User user) async {
+    // Generate verification code immediately
+    String code = _generateVerificationCode();
+    
+    // Show the code dialog right away
+    _showCodeGeneratedDialog(context, code);
+    
+    // Save to Firestore in the background (non-blocking)
     try {
-      // Show loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: Card(
-            child: Padding(
-              padding: EdgeInsets.all(20.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Generating verification code...'),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-
-      // Generate verification code
-      String code = _generateVerificationCode();
-      
-      // Save to Firestore
       await FirebaseFirestore.instance.collection('moderatorCodes').doc(code).set({
         'email': user.email,
         'code': code,
@@ -581,34 +564,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
           DateTime.now().add(const Duration(days: 7)),
         ),
       });
-      
-      if (context.mounted) {
-        Navigator.pop(context); // Close loading dialog
-        _showCodeGeneratedDialog(context, code);
-      }
     } catch (e) {
-      if (context.mounted) {
-        Navigator.pop(context); // Close loading dialog
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error generating code: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      print('Error saving code to Firestore: $e');
+      // Don't show error to user since they already have the code
     }
   }
 
   // Generate verification code - 8 characters
   String _generateVerificationCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final random = Random();
     String code = '';
-    final random = DateTime.now().millisecondsSinceEpoch;
     
     for (int i = 0; i < 8; i++) {
-      code += chars[(random + i * 13) % chars.length];
+      code += chars[random.nextInt(chars.length)];
     }
+    
     return code;
   }
 

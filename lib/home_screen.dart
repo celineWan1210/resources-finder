@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'map_screen.dart';
+import 'map_screen.dart' as map;
 import 'contribution_screen.dart' as contrib;
-import 'profile_screen.dart'; // You'll need to create this
+import 'profile_screen.dart'; 
+import 'community_screen.dart' as community;
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -48,7 +49,7 @@ class HomeScreen extends StatelessWidget {
               icon: CircleAvatar(
                 backgroundColor: Colors.white.withValues(alpha: 0.3),
                 child: Text(
-                  user?.displayName?.substring(0, 1).toUpperCase() ?? 'U',
+                  user.displayName?.substring(0, 1).toUpperCase() ?? 'U',
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -72,14 +73,14 @@ class HomeScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        user?.displayName ?? 'User',
+                        user.displayName ?? 'User',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
                       ),
                       Text(
-                        user?.email ?? '',
+                        user.email ?? '',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[600],
@@ -133,7 +134,7 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   // Welcome message
                   Text(
-                    isGuest ? 'Welcome, Guest!' : 'Welcome, ${user?.displayName?.split(' ')[0] ?? 'User'}!',
+                    isGuest ? 'Welcome, Guest!' : 'Welcome, ${user.displayName?.split(' ')[0] ?? 'User'}!',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
@@ -162,7 +163,7 @@ class HomeScreen extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const MapScreen(locationType: 'foodbank')),
+                        MaterialPageRoute(builder: (context) => const map.MapScreen(locationType: 'foodbank')),
                       );
                     },
                   ),
@@ -180,12 +181,30 @@ class HomeScreen extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const MapScreen(locationType: 'shelter')),
+                        MaterialPageRoute(builder: (context) => const map.MapScreen(locationType: 'shelter')),
                       );
                     },
                   ),
                   const SizedBox(height: 20),
 
+                  // Find Others Card
+                  _buildActionCard(
+                    context: context,
+                    title: 'Find Others',
+                    subtitle: 'Browse all community-shared resources',
+                    icon: Icons.groups,
+                    gradient: LinearGradient(
+                      colors: [Colors.purple[400]!, Colors.purple[600]!],
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const community.CommunityScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  
                   // Contribute Card
                   _buildActionCard(
                     context: context,

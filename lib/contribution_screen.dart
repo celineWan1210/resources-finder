@@ -43,7 +43,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   
   // Step 1: Category selection
-  Set<String> _selectedCategories = {};
+  final Set<String> _selectedCategories = {};
   final List<ContributionCategory> _categories = [
     ContributionCategory(
       id: 'food',
@@ -123,11 +123,11 @@ class _ContributionScreenState extends State<ContributionScreen> {
     'supplies': ['Blankets', 'School Supplies', 'Bedding', 'Kitchen Items'],
     'volunteer': ['Cooking', 'Packing', 'Cleaning', 'Mentoring', 'Teaching'],
   };
-  Set<String> _selectedTags = {};
+  final Set<String> _selectedTags = {};
 
   // Store contributions
   List<Map<String, dynamic>> _myContributions = [];
-  String? _selectedContributionFilter = null;
+  String? _selectedContributionFilter;
 
   Future<void> _loadCurrentLocation() async {
     final result = await LocationService.getCurrentLocation();
