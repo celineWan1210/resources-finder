@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert';
+import 'dart:html' as html;
 
 class ModeratorDashboard extends StatefulWidget {
   const ModeratorDashboard({super.key});
@@ -14,12 +16,22 @@ class _ModeratorDashboardState extends State<ModeratorDashboard> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   
+  // Tab control
+  int _currentTab = 0; // 0 = Contributions, 1 = Requests
+  
   String _selectedFilter = 'flagged';
   String _selectedRiskFilter = 'all';
   
-  int _totalFlagged = 0;
-  int _totalApproved = 0;
-  int _totalRejected = 0;
+  // Stats for Contributions
+  int _contribFlagged = 0;
+  int _contribApproved = 0;
+  int _contribRejected = 0;
+  
+  // Stats for Requests
+  int _requestFlagged = 0;
+  int _requestApproved = 0;
+  int _requestRejected = 0;
+  
   int _totalBlacklisted = 0;
 
   @override
@@ -30,20 +42,40 @@ class _ModeratorDashboardState extends State<ModeratorDashboard> {
 
   Future<void> _loadStats() async {
     try {
-      final flagged = await _firestore
+      // Contributions Stats
+      final contribFlagged = await _firestore
           .collection('contributions')
           .where('moderationStatus', isEqualTo: 'flagged')
           .count()
           .get();
       
-      final approved = await _firestore
+      final contribApproved = await _firestore
           .collection('contributions')
           .where('moderationStatus', isEqualTo: 'approved')
           .count()
           .get();
       
-      final rejected = await _firestore
+      final contribRejected = await _firestore
           .collection('contributions')
+          .where('moderationStatus', isEqualTo: 'rejected')
+          .count()
+          .get();
+
+      // Requests Stats
+      final requestFlagged = await _firestore
+          .collection('help_requests')
+          .where('moderationStatus', isEqualTo: 'flagged')
+          .count()
+          .get();
+      
+      final requestApproved = await _firestore
+          .collection('help_requests')
+          .where('moderationStatus', isEqualTo: 'approved')
+          .count()
+          .get();
+      
+      final requestRejected = await _firestore
+          .collection('help_requests')
           .where('moderationStatus', isEqualTo: 'rejected')
           .count()
           .get();
@@ -55,62 +87,89 @@ class _ModeratorDashboardState extends State<ModeratorDashboard> {
           .get();
 
       setState(() {
-        _totalFlagged = flagged.count ?? 0;
-        _totalApproved = approved.count ?? 0;
-        _totalRejected = rejected.count ?? 0;
+        _contribFlagged = contribFlagged.count ?? 0;
+        _contribApproved = contribApproved.count ?? 0;
+        _contribRejected = contribRejected.count ?? 0;
+        
+        _requestFlagged = requestFlagged.count ?? 0;
+        _requestApproved = requestApproved.count ?? 0;
+        _requestRejected = requestRejected.count ?? 0;
+        
         _totalBlacklisted = blacklisted.count ?? 0;
       });
     } catch (e) {
       debugPrint('Error loading stats: $e');
     }
   }
-
   Future<void> _exportToCSV() async {
-  try {
-    final snapshot = await _firestore
-        .collection('moderationLogs')
-        .orderBy('timestamp', descending: true)
-        .limit(1000)
-        .get();
+    try {
+      final collection = _currentTab == 0 ? 'contributions' : 'help_requests';
+      final snapshot = await _firestore
+          .collection(collection)
+          .orderBy('createdAt', descending: true)
+          .limit(1000)
+          .get();
 
-    if (snapshot.docs.isEmpty) {
-      _showSnackBar('No data to export', Colors.orange);
-      return;
-    }
+      if (snapshot.docs.isEmpty) {
+        _showSnackBar('No data to export', Colors.orange);
+        return;
+      }
 
-    final csvRows = <String>[];
-    csvRows.add('Timestamp,Contribution ID,User ID,User Email,Description,Status,Risk Score,Reason,Reviewed By Human');
+      final csvRows = <String>[];
+      csvRows.add('Timestamp,ID,User Email,Description,Status,Risk Score,Reason');
 
-    for (var doc in snapshot.docs) {
-      final data = doc.data();
-      final timestamp = (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
-      final description = (data['description'] ?? 'N/A').replaceAll('"', '""');
-      final reason = (data['moderationResult']?['reason'] ?? 'N/A').replaceAll('"', '""');
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        DateTime createdAt;
+        try {
+          if (data['createdAt'] is Timestamp) {
+            createdAt = (data['createdAt'] as Timestamp).toDate();
+          } else if (data['createdAt'] is String) {
+            createdAt = DateTime.parse(data['createdAt']);
+          } else {
+            createdAt = DateTime.now();
+          }
+        } catch (e) {
+          createdAt = DateTime.now();
+        }
+        
+        final description = (data['description'] ?? data['quantity'] ?? 'N/A').replaceAll('"', '""');
+        final reason = (data['moderationReason'] ?? 'N/A').replaceAll('"', '""');
+        
+        final row = [
+          DateFormat('yyyy-MM-dd HH:mm:ss').format(createdAt),
+          doc.id,
+          data['userEmail'] ?? 'N/A',
+          '"$description"',
+          data['moderationStatus'] ?? 'unknown',
+          data['riskScore'] ?? 'N/A',
+          '"$reason"',
+        ];
+        csvRows.add(row.join(','));
+      }
+
+      final csvContent = csvRows.join('\n');
       
-      final row = [
-        DateFormat('yyyy-MM-dd HH:mm:ss').format(timestamp),
-        data['contributionId'] ?? 'N/A',
-        data['userId'] ?? 'N/A',
-        data['userEmail'] ?? 'N/A',
-        '"$description"',
-        data['moderationResult']?['safe'] == true ? 'approved' : 'flagged',
-        data['moderationResult']?['riskScore'] ?? 'N/A',
-        '"$reason"',
-        data['reviewedByHuman']?.toString() ?? 'false',
-      ];
-      csvRows.add(row.join(','));
+      // Generate filename with timestamp
+      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final filename = '${collection}_moderation_report_$timestamp.csv';
+      
+      // Create blob and trigger download
+      final bytes = utf8.encode(csvContent);
+      final blob = html.Blob([bytes]);
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', filename)
+        ..click();
+      html.Url.revokeObjectUrl(url);
+      
+      _showSnackBar('✓ Downloaded: $filename (${csvRows.length - 1} records)', Colors.green);
+      
+    } catch (e) {
+      _showSnackBar('Error exporting CSV: $e', Colors.red);
     }
-
-    final csvContent = csvRows.join('\n');
-    
-    // Share the CSV content
-    _showSnackBar('CSV data prepared. Feature needs share package for mobile.', Colors.orange);
-    // TODO: Implement sharing for mobile using share_plus package
-    
-  } catch (e) {
-    _showSnackBar('Error exporting CSV: $e', Colors.red);
   }
-}
+
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -132,39 +191,106 @@ class _ModeratorDashboardState extends State<ModeratorDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Moderator Dashboard'),
-        backgroundColor: Colors.deepPurple,
-        elevation: 0,
+        toolbarHeight: 80, // INCREASED HEIGHT
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.shield, size: 32), // LARGER ICON
+            ),
+            const SizedBox(width: 16),
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Moderator Dashboard',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold), // LARGER TEXT
+                ),
+                Text(
+                  'Content Review & Management',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w300),
+                ),
+              ],
+            ),
+          ],
+        ),
+        backgroundColor: Colors.indigo[700], // BRIGHTER COLOR
+        elevation: 4,
+        shadowColor: Colors.indigo.withOpacity(0.5),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.download),
-            onPressed: _exportToCSV,
-            tooltip: 'Export Logs to CSV',
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadStats,
-            tooltip: 'Refresh Stats',
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-            tooltip: 'Logout',
+          // LARGER, MORE VISIBLE BUTTONS
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+            child: ElevatedButton.icon(
+              onPressed: _exportToCSV,
+              icon: const Icon(Icons.download, size: 20),
+              label: const Text('Export CSV'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green[600],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                elevation: 2,
+              ),
+            ),
           ),
           const SizedBox(width: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            child: Center(
-              child: Text(
-                _auth.currentUser?.email ?? 'Moderator',
-                style: const TextStyle(fontSize: 14),
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+            child: ElevatedButton.icon(
+              onPressed: _loadStats,
+              icon: const Icon(Icons.refresh, size: 20),
+              label: const Text('Refresh'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue[600],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                elevation: 2,
               ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+            child: ElevatedButton.icon(
+              onPressed: _logout,
+              icon: const Icon(Icons.logout, size: 20),
+              label: const Text('Logout'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[600],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                elevation: 2,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.person, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  _auth.currentUser?.email ?? 'Moderator',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+              ],
             ),
           ),
         ],
       ),
       body: Column(
         children: [
+          _buildTabBar(),
           _buildStatsDashboard(),
           _buildFilterBar(),
           Expanded(child: _buildContentList()),
@@ -173,19 +299,156 @@ class _ModeratorDashboardState extends State<ModeratorDashboard> {
     );
   }
 
-  Widget _buildStatsDashboard() {
+  Widget _buildTabBar() {
     return Container(
-      padding: const EdgeInsets.all(24),
-      color: Colors.deepPurple.shade50,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.indigo[600]!, Colors.indigo[800]!],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
       child: Row(
         children: [
-          Expanded(child: _buildStatCard('Pending Review', _totalFlagged, Colors.orange, Icons.flag)),
-          const SizedBox(width: 16),
-          Expanded(child: _buildStatCard('Approved', _totalApproved, Colors.green, Icons.check_circle)),
-          const SizedBox(width: 16),
-          Expanded(child: _buildStatCard('Rejected', _totalRejected, Colors.red, Icons.cancel)),
-          const SizedBox(width: 16),
-          Expanded(child: _buildStatCard('Blacklisted Users', _totalBlacklisted, Colors.black87, Icons.block)),
+          Expanded(
+            child: _buildTabButton(
+              label: 'Provide Help (Contributions)',
+              icon: Icons.card_giftcard,
+              index: 0,
+            ),
+          ),
+          Expanded(
+            child: _buildTabButton(
+              label: 'Request Help',
+              icon: Icons.help_outline,
+              index: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabButton({
+    required String label,
+    required IconData icon,
+    required int index,
+  }) {
+    final isSelected = _currentTab == index;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _currentTab = index;
+          _selectedFilter = 'flagged'; // Reset filter
+          _selectedRiskFilter = 'all';
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20), // INCREASED PADDING
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(16),
+            topRight: Radius.circular(16),
+          ),
+          boxShadow: isSelected ? [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, -2),
+            ),
+          ] : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? Colors.indigo[700] : Colors.white,
+              size: 28, // LARGER ICON
+            ),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 18, // LARGER TEXT
+                fontWeight: FontWeight.bold,
+                color: isSelected ? Colors.indigo[700] : Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatsDashboard() {
+    final flagged = _currentTab == 0 ? _contribFlagged : _requestFlagged;
+    final approved = _currentTab == 0 ? _contribApproved : _requestApproved;
+    final rejected = _currentTab == 0 ? _contribRejected : _requestRejected;
+    
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.indigo[50]!, Colors.blue[50]!],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _currentTab == 0 
+                ? '📦 Contribution Moderation' 
+                : '🆘 Help Request Moderation',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.indigo[800],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'Pending Review',
+                  flagged,
+                  Colors.orange,
+                  Icons.flag,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildStatCard(
+                  'Approved',
+                  approved,
+                  Colors.green,
+                  Icons.check_circle,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildStatCard(
+                  'Rejected',
+                  rejected,
+                  Colors.red,
+                  Icons.cancel,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildStatCard(
+                  'Blacklisted Users',
+                  _totalBlacklisted,
+                  Colors.black87,
+                  Icons.block,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -292,13 +555,14 @@ class _ModeratorDashboardState extends State<ModeratorDashboard> {
             _selectedRiskFilter = value;
           });
         },
-        selectedColor: Colors.deepPurple.withOpacity(0.2),
+        selectedColor: Colors.indigo.withOpacity(0.2),
       ),
     );
   }
 
   Widget _buildContentList() {
-    Query query = _firestore.collection('contributions');
+    final collection = _currentTab == 0 ? 'contributions' : 'help_requests';
+    Query query = _firestore.collection(collection);
 
     // Apply filters
     bool hasStatusFilter = _selectedFilter != 'all';
@@ -335,7 +599,9 @@ class _ModeratorDashboardState extends State<ModeratorDashboard> {
                 Icon(Icons.inbox, size: 80, color: Colors.grey[400]),
                 const SizedBox(height: 16),
                 Text(
-                  'No contributions found',
+                  _currentTab == 0 
+                      ? 'No contributions found'
+                      : 'No help requests found',
                   style: TextStyle(fontSize: 18, color: Colors.grey[600]),
                 ),
               ],
@@ -349,165 +615,354 @@ class _ModeratorDashboardState extends State<ModeratorDashboard> {
           itemBuilder: (context, index) {
             final doc = docs[index];
             final data = doc.data() as Map<String, dynamic>;
-            return _buildContributionCard(doc.id, data);
+            return _currentTab == 0
+                ? _buildContributionCard(doc.id, data)
+                : _buildRequestCard(doc.id, data);
           },
         );
       },
     );
   }
 
- Widget _buildContributionCard(String docId, Map<String, dynamic> data) {
-  final status = data['moderationStatus'] ?? 'unknown';
-  final riskScore = data['riskScore'] ?? 'unknown';
-  final reason = data['moderationReason'] ?? 'No reason provided';
-  
-  // Handle both String and Timestamp formats for createdAt
-  DateTime createdAt;
-  try {
-    if (data['createdAt'] is Timestamp) {
-      createdAt = (data['createdAt'] as Timestamp).toDate();
-    } else if (data['createdAt'] is String) {
-      createdAt = DateTime.parse(data['createdAt']);
-    } else {
+  Widget _buildContributionCard(String docId, Map<String, dynamic> data) {
+    final status = data['moderationStatus'] ?? 'unknown';
+    final riskScore = data['riskScore'] ?? 'unknown';
+    final reason = data['moderationReason'] ?? 'No reason provided';
+    
+    DateTime createdAt;
+    try {
+      if (data['createdAt'] is Timestamp) {
+        createdAt = (data['createdAt'] as Timestamp).toDate();
+      } else if (data['createdAt'] is String) {
+        createdAt = DateTime.parse(data['createdAt']);
+      } else {
+        createdAt = DateTime.now();
+      }
+    } catch (e) {
       createdAt = DateTime.now();
     }
-  } catch (e) {
-    createdAt = DateTime.now();
-  }
-  
-  final categories = List<String>.from(data['categories'] ?? []);
+    
+    final categories = List<String>.from(data['categories'] ?? []);
 
-  Color statusColor = status == 'flagged' ? Colors.orange : 
-                     status == 'approved' ? Colors.green : Colors.red;
-  
-  Color riskColor = riskScore == 'high' ? Colors.red :
-                   riskScore == 'medium' ? Colors.orange : Colors.green;
+    Color statusColor = status == 'flagged' ? Colors.orange : 
+                       status == 'approved' ? Colors.green : Colors.red;
+    
+    Color riskColor = riskScore == 'high' ? Colors.red :
+                     riskScore == 'medium' ? Colors.orange : Colors.green;
 
-  return Card(
-    margin: const EdgeInsets.only(bottom: 16),
-    elevation: 2,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    child: ExpansionTile(
-      leading: Icon(
-        status == 'flagged' ? Icons.flag : 
-        status == 'approved' ? Icons.check_circle : Icons.cancel,
-        color: statusColor,
-        size: 32,
-      ),
-      title: Row(
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ExpansionTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: statusColor.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            Icons.card_giftcard,
+            color: statusColor,
+            size: 28,
+          ),
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.person, size: 14, color: Colors.grey[600]),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          data['userEmail'] ?? 'Unknown',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    categories.join(', '),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  Text(
+                    'Posted ${DateFormat('MMM dd, yyyy HH:mm').format(createdAt)}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: riskColor.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: riskColor),
+              ),
+              child: Text(
+                riskScore.toUpperCase(),
+                style: TextStyle(color: riskColor, fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: statusColor),
+              ),
+              child: Text(
+                status.toUpperCase(),
+                style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
         children: [
-          Expanded(
+          Padding(
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  categories.join(', '),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                Text(
-                  'Posted ${DateFormat('MMM dd, yyyy HH:mm').format(createdAt)}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
+                _buildDetailRow('Description', data['description'] ?? 'N/A'),
+                _buildDetailRow('Quantity', data['quantity'] ?? 'N/A'),
+                _buildDetailRow('Location', data['location'] ?? 'N/A'),
+                _buildDetailRow('Contact', data['contact'] ?? 'Not provided'),
+                _buildDetailRow('AI Reason', reason),
+                
+                if (data['tags'] != null && (data['tags'] as List).isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  const Text('Tags:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: (data['tags'] as List).map((tag) {
+                      return Chip(
+                        label: Text(tag, style: const TextStyle(fontSize: 12)),
+                        backgroundColor: Colors.blue[50],
+                      );
+                    }).toList(),
+                  ),
+                ],
+                
+                if (status == 'flagged') ...[
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _reviewContent(docId, 'approve', 'contributions'),
+                          icon: const Icon(Icons.check_circle),
+                          label: const Text('Approve'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _reviewContent(docId, 'reject', 'contributions'),
+                          icon: const Icon(Icons.cancel),
+                          label: const Text('Reject'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: riskColor.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: riskColor),
-            ),
-            child: Text(
-              riskScore.toUpperCase(),
-              style: TextStyle(color: riskColor, fontSize: 12, fontWeight: FontWeight.bold),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: statusColor),
-            ),
-            child: Text(
-              status.toUpperCase(),
-              style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ),
         ],
       ),
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildDetailRow('User Email', data['userEmail'] ?? 'N/A'),
-              _buildDetailRow('Description', data['description'] ?? 'N/A'),
-              _buildDetailRow('Quantity', data['quantity'] ?? 'N/A'),
-              _buildDetailRow('Location', data['location'] ?? 'N/A'),
-              _buildDetailRow('Contact', data['contact'] ?? 'Not provided'),
-              _buildDetailRow('AI Reason', reason),
-              
-              if (data['tags'] != null && (data['tags'] as List).isNotEmpty) ...[
-                const SizedBox(height: 12),
-                const Text('Tags:', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: (data['tags'] as List).map((tag) {
-                    return Chip(
-                      label: Text(tag, style: const TextStyle(fontSize: 12)),
-                      backgroundColor: Colors.blue[50],
-                    );
-                  }).toList(),
-                ),
-              ],
-              
-              if (status == 'flagged') ...[
-                const SizedBox(height: 24),
-                const Divider(),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _reviewContribution(docId, 'approve'),
-                        icon: const Icon(Icons.check_circle),
-                        label: const Text('Approve'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _reviewContribution(docId, 'reject'),
-                        icon: const Icon(Icons.cancel),
-                        label: const Text('Reject'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
+    );
+  }
+
+  Widget _buildRequestCard(String docId, Map<String, dynamic> data) {
+    final status = data['moderationStatus'] ?? 'unknown';
+    final riskScore = data['riskScore'] ?? 'unknown';
+    final reason = data['moderationReason'] ?? 'No reason provided';
+    
+    DateTime createdAt;
+    try {
+      if (data['createdAt'] is Timestamp) {
+        createdAt = (data['createdAt'] as Timestamp).toDate();
+      } else if (data['createdAt'] is String) {
+        createdAt = DateTime.parse(data['createdAt']);
+      } else {
+        createdAt = DateTime.now();
+      }
+    } catch (e) {
+      createdAt = DateTime.now();
+    }
+    
+    final categories = List<String>.from(data['categories'] ?? []);
+
+    Color statusColor = status == 'flagged' ? Colors.orange : 
+                       status == 'approved' ? Colors.green : Colors.red;
+    
+    Color riskColor = riskScore == 'high' ? Colors.red :
+                     riskScore == 'medium' ? Colors.orange : Colors.green;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ExpansionTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: statusColor.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            Icons.help_outline,
+            color: statusColor,
+            size: 28,
           ),
         ),
-      ],
-    ),
-  );
-}
-
+        title: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.person, size: 14, color: Colors.grey[600]),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          data['userEmail'] ?? 'Unknown',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    categories.join(', '),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  Text(
+                    'Posted ${DateFormat('MMM dd, yyyy HH:mm').format(createdAt)}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: riskColor.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: riskColor),
+              ),
+              child: Text(
+                riskScore.toUpperCase(),
+                style: TextStyle(color: riskColor, fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: statusColor),
+              ),
+              child: Text(
+                status.toUpperCase(),
+                style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildDetailRow('Quantity Needed', data['quantity'] ?? 'N/A'),
+                _buildDetailRow('Remarks', data['remarks'] ?? 'N/A'),
+                _buildDetailRow('Location', data['location'] ?? 'N/A'),
+                _buildDetailRow('Contact', data['contact'] ?? 'Not provided'),
+                _buildDetailRow('AI Reason', reason),
+                
+                if (data['tags'] != null && (data['tags'] as List).isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  const Text('Preferences:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: (data['tags'] as List).map((tag) {
+                      return Chip(
+                        label: Text(tag, style: const TextStyle(fontSize: 12)),
+                        backgroundColor: Colors.purple[50],
+                      );
+                    }).toList(),
+                  ),
+                ],
+                
+                if (status == 'flagged') ...[
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _reviewContent(docId, 'approve', 'help_requests'),
+                          icon: const Icon(Icons.check_circle),
+                          label: const Text('Approve'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _reviewContent(docId, 'reject', 'help_requests'),
+                          icon: const Icon(Icons.cancel),
+                          label: const Text('Reject'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(
@@ -525,17 +980,17 @@ class _ModeratorDashboardState extends State<ModeratorDashboard> {
     );
   }
 
-  Future<void> _reviewContribution(String docId, String action) async {
+  Future<void> _reviewContent(String docId, String action, String collection) async {
     final notesController = TextEditingController();
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('${action == 'approve' ? 'Approve' : 'Reject'} Contribution'),
+        title: Text('${action == 'approve' ? 'Approve' : 'Reject'} ${collection == 'contributions' ? 'Contribution' : 'Request'}'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Are you sure you want to $action this contribution?'),
+            Text('Are you sure you want to $action this ${collection == 'contributions' ? 'contribution' : 'request'}?'),
             const SizedBox(height: 16),
             TextField(
               controller: notesController,
@@ -566,7 +1021,7 @@ class _ModeratorDashboardState extends State<ModeratorDashboard> {
     if (confirmed != true) return;
 
     try {
-      await _firestore.collection('contributions').doc(docId).update({
+      await _firestore.collection(collection).doc(docId).update({
         'moderationStatus': action == 'approve' ? 'approved' : 'rejected',
         'verified': action == 'approve',
         'reviewedByModerator': true,
@@ -576,7 +1031,8 @@ class _ModeratorDashboardState extends State<ModeratorDashboard> {
       });
 
       await _firestore.collection('moderationLogs').add({
-        'contributionId': docId,
+        'contentId': docId,
+        'contentType': collection,
         'action': action,
         'moderatorId': _auth.currentUser?.uid,
         'moderatorEmail': _auth.currentUser?.email,
@@ -585,7 +1041,7 @@ class _ModeratorDashboardState extends State<ModeratorDashboard> {
         'timestamp': FieldValue.serverTimestamp(),
       });
 
-      _showSnackBar('Contribution ${action}d successfully!', Colors.green);
+      _showSnackBar('${collection == 'contributions' ? 'Contribution' : 'Request'} ${action}d successfully!', Colors.green);
       _loadStats();
     } catch (e) {
       _showSnackBar('Error: $e', Colors.red);
