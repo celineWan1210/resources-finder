@@ -5,6 +5,7 @@ import 'map_screen.dart' as map;
 import 'contribution_screen.dart' as contrib;
 import 'profile_screen.dart'; 
 import 'community_screen.dart' as community;
+import 'request_help_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -235,6 +236,37 @@ class HomeScreen extends StatelessWidget {
                     },
                   ),
                   const SizedBox(height: 32),
+
+                  // Request Help Card
+                  _buildActionCard(
+                    context: context,
+                    title: 'Request Help',
+                    subtitle: isGuest
+                        ? 'Login to request assistance'
+                        : 'Submit a request for food, shelter, or other needs',
+                    icon: isGuest ? Icons.lock_outline : Icons.help_outline,
+                    gradient: isGuest
+                        ? LinearGradient(
+                            colors: [Colors.grey[400]!, Colors.grey[600]!],
+                          )
+                        : LinearGradient(
+                            colors: [Colors.red[400]!, Colors.red[600]!],
+                          ),
+                    isDisabled: isGuest,
+                    onTap: () {
+                      if (isGuest) {
+                        _showLoginDialog(context);
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const RequestHelpScreen(),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 20),
 
                   // How it works section
                   Container(

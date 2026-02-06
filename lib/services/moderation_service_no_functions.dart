@@ -250,6 +250,227 @@ Response format (valid JSON only, no extra text):
     throw Exception('Max retries reached');
   }
 
+static Future<void> moderateRequest(String requestId, Map<String, dynamic> requestData) async {
+  try {
+    print('🔍 Starting moderation for request: $requestId');
+    
+    // Step 1: Call Gemini API with retry logic
+    final moderationResult = await _analyzeRequestWithGemini(requestData);
+    
+    // Step 2: Determine status
+    final isSafe = moderationResult['safe'] == true;
+    final riskScore = moderationResult['riskScore'] ?? 'medium';
+    
+    // Step 3: Update request and create log in a batch
+    final batch = _firestore.batch();
+    
+    // Update request
+    batch.update(
+      _firestore.collection('help_requests').doc(requestId),
+      {
+        'verified': isSafe,
+        'moderationStatus': isSafe ? 'approved' : 'flagged',
+        'moderationReason': moderationResult['reason'],
+        'riskScore': riskScore,
+        if (isSafe) 'approvedAt': FieldValue.serverTimestamp()
+        else 'flaggedAt': FieldValue.serverTimestamp(),
+      },
+    );
+    
+    // Add moderation log
+    batch.set(
+      _firestore.collection('moderationLogs').doc(),
+      {
+        'requestId': requestId,
+        'userId': requestData['userId'] ?? 'anonymous',
+        'userEmail': requestData['userEmail'] ?? 'not_provided',
+        'type': 'help_request',
+        'categories': requestData['categories'] ?? [],
+        'remarks': requestData['remarks'] ?? '',
+        'location': requestData['location'] ?? 'not_provided',
+        'contact': requestData['contact'] ?? 'not_provided',
+        'moderationResult': moderationResult,
+        'timestamp': FieldValue.serverTimestamp(),
+        'reviewedByHuman': false,
+      },
+    );
+    
+    // Commit batch
+    await batch.commit();
+    
+    print(isSafe ? '✅ REQUEST APPROVED automatically' : '⚠️ REQUEST FLAGGED: ${moderationResult['reason']}');
+    
+    // Step 4: Handle user warnings (separate transaction)
+    if (!isSafe) {
+      await _incrementUserWarning(
+        requestData['userId'],
+        riskScore,
+      );
+    }
+
+  } catch (e) {
+    print('❌ Request moderation error: $e');
+    
+    // Mark as error
+    try {
+      await _firestore.collection('help_requests').doc(requestId).update({
+        'moderationStatus': 'error',
+        'moderationError': e.toString(),
+      });
+    } catch (updateError) {
+      print('Failed to update error status: $updateError');
+    }
+  }
+}
+
+
+  /// Analyze help request with Gemini
+static Future<Map<String, dynamic>> _analyzeRequestWithGemini(Map<String, dynamic> request) async {
+  final contact = request['contact'] ?? '';
+  final hasContact = contact.isNotEmpty;
+  final remarks = request['remarks'] ?? '';
+  
+  final prompt = '''Analyze this HELP REQUEST from someone asking for assistance. Return ONLY valid JSON.
+
+Request Details:
+What they need: ${json.encode(request['categories'] ?? [])}
+Quantity Needed: "${request['quantity'] ?? 'N/A'}"
+Additional Details: "${remarks.isNotEmpty ? remarks : 'None'}"
+Location: "${request['location'] ?? 'N/A'}"
+${hasContact ? 'Contact Information: "$contact"' : 'Contact: Not provided'}
+
+Check for RED FLAGS in help requests:
+- Suspicious or unrealistic quantities (e.g., "need 1000 meals")
+- Offensive, abusive, or inappropriate language
+- Signs of scamming (asking for money, gift cards, personal info)
+- Repeated spam requests
+- Fake emergencies to exploit helpers
+- Vague or suspicious locations
+- Inappropriate use of the help request system
+- Signs the person may be trying to abuse helpers' generosity
+
+${hasContact ? 'Check if contact information looks legitimate or suspicious.' : ''}
+
+REMEMBER: Most genuine help requests should be APPROVED. Only flag if there are clear red flags.
+
+IMPORTANT: Keep "reason" field to 2 sentences maximum or less.
+
+Response format (valid JSON only, no extra text):
+{
+  "safe": true or false,
+  "reason": "Brief reason in 1-2 sentences max",
+  "riskScore": "low" or "medium" or "high",
+  "concerns": ["concern1", "concern2"]
+}''';
+
+  final requestBody = {
+    'contents': [
+      {
+        'parts': [
+          {'text': prompt}
+        ]
+      }
+    ],
+    'generationConfig': {
+      'temperature': 0.2,
+      'maxOutputTokens': 1000,
+    }
+  };
+
+  // [Rest of the method stays the same - the retry logic and JSON parsing]
+  int maxRetries = 3;
+  Duration delay = Duration(seconds: 2);
+  
+  for (int attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      final response = await http.post(
+        Uri.parse('$geminiApiUrl?key=$geminiApiKey'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(requestBody),
+      ).timeout(Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        final text = responseData['candidates'][0]['content']['parts'][0]['text'];
+        
+        print('📝 Raw Gemini response (help request): $text');
+        
+        // Same JSON parsing logic as contributions
+        String jsonText = text.trim();
+        jsonText = jsonText.replaceAll(RegExp(r'```json\s*'), '');
+        jsonText = jsonText.replaceAll(RegExp(r'```\s*'), '');
+        
+        final jsonMatch = RegExp(r'\{[\s\S]*\}').firstMatch(jsonText);
+        if (jsonMatch != null) {
+          jsonText = jsonMatch.group(0)!;
+        }
+        
+        if (!jsonText.trim().endsWith('}')) {
+          int openBraces = '{'.allMatches(jsonText).length;
+          int closeBraces = '}'.allMatches(jsonText).length;
+          
+          if (openBraces > closeBraces) {
+            if (!jsonText.contains('"riskScore"')) {
+              jsonText += ',\n  "riskScore": "low"';
+            }
+            if (!jsonText.contains('"concerns"')) {
+              jsonText += ',\n  "concerns": []';
+            }
+            jsonText += '\n}';
+          }
+        }
+        
+        try {
+          final parsed = json.decode(jsonText);
+          
+          return {
+            'safe': parsed['safe'] == true,
+            'reason': parsed['reason'] ?? 'No reason provided',
+            'riskScore': parsed['riskScore']?.toString().toLowerCase() ?? 'low',
+            'concerns': List<String>.from(parsed['concerns'] ?? []),
+            'rawResponse': text,
+          };
+        } catch (parseError) {
+          final safeMatch = RegExp(r'"safe":\s*(true|false)').firstMatch(text);
+          if (safeMatch != null) {
+            final isSafe = safeMatch.group(1) == 'true';
+            return {
+              'safe': isSafe,
+              'reason': 'Parsed from incomplete response',
+              'riskScore': 'low',
+              'concerns': [],
+              'rawResponse': text,
+            };
+          }
+          
+          return {
+            'safe': true,
+            'reason': 'Unable to parse AI response - defaulting to safe',
+            'riskScore': 'low',
+            'concerns': [],
+            'rawResponse': text,
+          };
+        }
+      }
+      
+      if (response.statusCode == 503 && attempt < maxRetries - 1) {
+        await Future.delayed(delay);
+        delay *= 2;
+        continue;
+      }
+      
+      throw Exception('Gemini API error (${response.statusCode}): ${response.body}');
+      
+    } catch (e) {
+      if (attempt == maxRetries - 1) rethrow;
+      await Future.delayed(delay);
+      delay *= 2;
+    }
+  }
+  
+  throw Exception('Max retries reached');
+}
+
   /// Increment user warning count
   static Future<void> _incrementUserWarning(String? userId, String riskScore) async {
     if (userId == null || userId.isEmpty || userId == 'anonymous') {
