@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'map_screen.dart' as map;
 import 'contribution_screen.dart' as contrib;
 import 'profile_screen.dart';
 import 'community_screen.dart' as community;
 import 'request_help_screen.dart';
+import 'widgets/translatable_text.dart';
+import 'widgets/language_toggle.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -18,7 +19,7 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        title: const Text(
+        title: const TranslatableText(
           "Community Resources",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
@@ -32,12 +33,13 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
         actions: [
+          const LanguageToggle(),
           if (isGuest)
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Chip(
                 avatar: const Icon(Icons.person_outline, size: 16, color: Colors.white),
-                label: const Text(
+                label: const TranslatableText(
                   'Guest',
                   style: TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
                 ),
@@ -96,7 +98,7 @@ class HomeScreen extends StatelessWidget {
                     children: [
                       Icon(Icons.person, color: Colors.blue, size: 20),
                       SizedBox(width: 12),
-                      Text('Profile'),
+                      TranslatableText('Profile'),
                     ],
                   ),
                 ),
@@ -106,7 +108,7 @@ class HomeScreen extends StatelessWidget {
                     children: [
                       Icon(Icons.logout, color: Colors.red, size: 20),
                       SizedBox(width: 12),
-                      Text('Logout'),
+                      TranslatableText('Logout'),
                     ],
                   ),
                 ),
@@ -129,7 +131,7 @@ class HomeScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  TranslatableText(
                     isGuest ? 'Welcome, Guest!' : 'Welcome, ${user.displayName?.split(' ')[0] ?? 'User'}!',
                     style: TextStyle(
                       fontSize: 26,
@@ -138,7 +140,7 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Text(
+                  TranslatableText(
                     'Find help or share resources in your community.',
                     style: TextStyle(
                       fontSize: 15,
@@ -152,7 +154,7 @@ class HomeScreen extends StatelessWidget {
 
                   const SizedBox(height: 10),
 
-                  Text(
+                  TranslatableText(
                     'Quick Actions',
                     style: TextStyle(
                       fontSize: 14,
@@ -165,7 +167,7 @@ class HomeScreen extends StatelessWidget {
 
                   const SizedBox(height: 20),
 
-                  Text(
+                  TranslatableText(
                     'Find Resources',
                     style: TextStyle(
                       fontSize: 14,
@@ -230,7 +232,7 @@ class HomeScreen extends StatelessWidget {
 
                   const SizedBox(height: 24),
 
-                  Text(
+                  TranslatableText(
                     'Contribute',
                     style: TextStyle(
                       fontSize: 14,
@@ -265,7 +267,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
 
-                  Text(
+                  TranslatableText(
                     'Need Help',
                     style: TextStyle(
                       fontSize: 14,
@@ -323,11 +325,10 @@ class HomeScreen extends StatelessWidget {
         children: [
           Icon(Icons.info_outline, color: Colors.orange[700]),
           const SizedBox(width: 10),
-          Expanded(
-            child: Text(
+          const Expanded(
+            child: TranslatableText(
               'You are in Guest Mode. Sign in to share resources and request help.',
               style: TextStyle(
-                color: Colors.orange[900],
                 fontSize: 13,
               ),
             ),
@@ -336,7 +337,7 @@ class HomeScreen extends StatelessWidget {
             onPressed: () {
               Navigator.pushReplacementNamed(context, '/login');
             },
-            child: const Text('Sign In'),
+            child: const TranslatableText('Sign In'),
           ),
         ],
       ),
@@ -412,7 +413,7 @@ class HomeScreen extends StatelessWidget {
               children: [
                 Icon(icon, color: color),
                 const SizedBox(height: 6),
-                Text(
+                TranslatableText(
                   label,
                   style: TextStyle(
                     color: color,
@@ -427,6 +428,7 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
+  
 
   Widget _buildHowItWorks() {
     return Container(
@@ -449,7 +451,7 @@ class HomeScreen extends StatelessWidget {
             children: [
               Icon(Icons.info_outline, color: Colors.blue[700], size: 24),
               const SizedBox(width: 12),
-              Text(
+              TranslatableText(
                 'How It Works',
                 style: TextStyle(
                   fontSize: 18,
@@ -507,7 +509,7 @@ class HomeScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              TranslatableText(
                 title,
                 style: const TextStyle(
                   fontSize: 14,
@@ -516,7 +518,7 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 2),
-              Text(
+              TranslatableText(
                 description,
                 style: TextStyle(
                   fontSize: 12,
@@ -588,7 +590,7 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Text(
+                    TranslatableText(
                       title,
                       style: const TextStyle(
                         fontSize: 20,
@@ -597,7 +599,7 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Text(
+                    TranslatableText(
                       subtitle,
                       style: TextStyle(
                         fontSize: 13,
@@ -607,7 +609,7 @@ class HomeScreen extends StatelessWidget {
                     const SizedBox(height: 10),
                     Row(
                       children: [
-                        Text(
+                        TranslatableText(
                           actionLabel,
                           style: TextStyle(
                             fontSize: 12,
@@ -647,20 +649,20 @@ class HomeScreen extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: const [
+        title: const Row(
+          children: [
             Icon(Icons.lock_outline, color: Colors.orange),
             SizedBox(width: 12),
-            Text('Login Required'),
+            TranslatableText('Login Required'),
           ],
         ),
-        content: const Text(
+        content: const TranslatableText(
           'You need to sign in with Google to contribute resources and help your community.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
+            child: TranslatableText(
               'Cancel',
               style: TextStyle(color: Colors.grey[600]),
             ),
@@ -671,7 +673,7 @@ class HomeScreen extends StatelessWidget {
               Navigator.pushReplacementNamed(context, '/login');
             },
             icon: const Icon(Icons.login, size: 18),
-            label: const Text('Sign In'),
+            label: const TranslatableText('Sign In'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue[600],
               foregroundColor: Colors.white,

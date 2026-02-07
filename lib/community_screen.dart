@@ -644,7 +644,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                         ),
                       ),
                     );
-                  }).toList(),
+                  }),
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
@@ -864,7 +864,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                         entry.key[0].toUpperCase() + entry.key.substring(1),
                                         _getColorForType(entry.key),
                                       ))
-                                  .toList(),
+                                  ,
                             ],
                           ),
                         ),

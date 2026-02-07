@@ -1373,7 +1373,7 @@ class _MapScreenState extends State<MapScreen> {
                             size: 20
                           ),
                           SizedBox(width: 8),
-                          Text(_typeLabel + "s", style: TextStyle(fontSize: 12)),
+                          Text("${_typeLabel}s", style: TextStyle(fontSize: 12)),
                         ],
                       ),
                       const SizedBox(height: 4),
