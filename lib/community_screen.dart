@@ -34,6 +34,7 @@ class CommunityResource {
   final double distance;
   final String moderationStatus;
   final String riskScore;
+  final bool verified;
 
   CommunityResource({
     required this.id,
@@ -55,6 +56,7 @@ class CommunityResource {
     required this.distance,
     required this.moderationStatus,
     required this.riskScore,
+    required this.verified,
   });
 
   factory CommunityResource.fromFirestore(DocumentSnapshot doc, LatLng userLocation) {
@@ -88,6 +90,7 @@ class CommunityResource {
       distance: distance,
       moderationStatus: data['moderationStatus'] ?? 'pending',
       riskScore: data['riskScore'] ?? 'unknown',
+      verified: data['verified'] ?? false,
     );
   }
 }
@@ -339,9 +342,64 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                 ],
                               ),
                             ),
+                            // Verified badge (matching MapScreen)
+                            if (resource.verified)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: const [
+                                    Icon(Icons.verified, color: Colors.white, size: 12),
+                                    SizedBox(width: 4),
+                                    TranslatableText(
+                                      'AI Verified',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                           ],
                         ),
                         const SizedBox(height: 20),
+
+                        // AI Verification Banner (matching MapScreen)
+                        if (resource.verified)
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            margin: const EdgeInsets.only(bottom: 20),
+                            decoration: BoxDecoration(
+                              color: Colors.green[50],
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.green[200]!),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.check_circle, color: Colors.green[700], size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TranslatableText(
+                                    'This contribution has been verified by AI moderation',
+                                    style: TextStyle(
+                                      color: Colors.green[900],
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
 
                         // Description
                         Container(
@@ -525,155 +583,194 @@ class _CommunityScreenState extends State<CommunityScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            return Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Drag handle
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 20),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
+            return DraggableScrollableSheet(
+              initialChildSize: 0.75,
+              minChildSize: 0.5,
+              maxChildSize: 0.9,
+              expand: false,
+              builder: (context, scrollController) {
+                return Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Column(
                     children: [
-                      const TranslatableText(
-                        'Show on Map',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                      // Drag handle
+                      Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      TextButton(
-                        onPressed: () {
-                          setModalState(() {
-                            final allChecked = _categoryFilters.values.every((v) => v);
-                            _categoryFilters.updateAll((key, value) => !allChecked);
-                          });
-                          setState(() {});
-                        },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        ),
-                        child: TranslatableText(
-                          _categoryFilters.values.every((v) => v) ? 'Uncheck All' : 'Check All',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  ..._categoryFilters.keys.map((category) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () {
-                            setModalState(() {
-                              _categoryFilters[category] = !(_categoryFilters[category] ?? false);
-                            });
-                            setState(() {});
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                            decoration: BoxDecoration(
-                              color: (_categoryFilters[category] ?? false)
-                                  ? _getColorForType(category).withOpacity(0.1)
-                                  : Colors.grey[50],
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: (_categoryFilters[category] ?? false)
-                                    ? _getColorForType(category).withOpacity(0.3)
-                                    : Colors.grey[300]!,
-                                width: 2,
+                      // Header (fixed)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const TranslatableText(
+                              'Show on Map',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: _getColorForType(category).withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Icon(
-                                    _getIconForType(category),
-                                    color: _getColorForType(category),
-                                    size: 28,
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: TranslatableText(
-                                    category[0].toUpperCase() + category.substring(1),
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
+                            TextButton(
+                              onPressed: () {
+                                setModalState(() {
+                                  final allChecked = _categoryFilters.values.every((v) => v);
+                                  _categoryFilters.updateAll((key, value) => !allChecked);
+                                });
+                                setState(() {});
+                              },
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              ),
+                              child: TranslatableText(
+                                _categoryFilters.values.every((v) => v) ? 'Uncheck All' : 'Check All',
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Scrollable content
+                      Expanded(
+                        child: SingleChildScrollView(
+                          controller: scrollController,
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ..._categoryFilters.keys.map((category) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(12),
+                                      onTap: () {
+                                        setModalState(() {
+                                          _categoryFilters[category] = !(_categoryFilters[category] ?? false);
+                                        });
+                                        setState(() {});
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                        decoration: BoxDecoration(
+                                          color: (_categoryFilters[category] ?? false)
+                                              ? _getColorForType(category).withOpacity(0.1)
+                                              : Colors.grey[50],
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: (_categoryFilters[category] ?? false)
+                                                ? _getColorForType(category).withOpacity(0.3)
+                                                : Colors.grey[300]!,
+                                            width: 2,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(10),
+                                              decoration: BoxDecoration(
+                                                color: _getColorForType(category).withOpacity(0.2),
+                                                borderRadius: BorderRadius.circular(10),
+                                              ),
+                                              child: Icon(
+                                                _getIconForType(category),
+                                                color: _getColorForType(category),
+                                                size: 28,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            Expanded(
+                                              child: TranslatableText(
+                                                category[0].toUpperCase() + category.substring(1),
+                                                style: const TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                            Checkbox(
+                                              value: _categoryFilters[category],
+                                              activeColor: _getColorForType(category),
+                                              onChanged: (value) {
+                                                setModalState(() {
+                                                  _categoryFilters[category] = value ?? false;
+                                                });
+                                                setState(() {});
+                                              },
+                                              materialTapTargetSize: MaterialTapTargetSize.padded,
+                                              visualDensity: VisualDensity.comfortable,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
                                   ),
+                                );
+                              }),
+                              const SizedBox(height: 100), // Extra space for button
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      // Apply button (fixed at bottom)
+                      SafeArea(
+                        child: Container(
+                          padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, -5),
+                              ),
+                            ],
+                          ),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.all(18),
+                                backgroundColor: Colors.purple,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                                Checkbox(
-                                  value: _categoryFilters[category],
-                                  activeColor: _getColorForType(category),
-                                  onChanged: (value) {
-                                    setModalState(() {
-                                      _categoryFilters[category] = value ?? false;
-                                    });
-                                    setState(() {});
-                                  },
-                                  materialTapTargetSize: MaterialTapTargetSize.padded,
-                                  visualDensity: VisualDensity.comfortable,
+                              ),
+                              child: const TranslatableText(
+                                'Apply Filters',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
                                 ),
-                              ],
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    );
-                  }),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.all(18),
-                        backgroundColor: Colors.purple,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const TranslatableText(
-                        'Apply Filters',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(height: 10),
-                ],
-              ),
+                );
+              },
             );
           },
         );
       },
     );
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -748,8 +845,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
                     .map((doc) => CommunityResource.fromFirestore(doc, _currentLocation))
                     .toList();
 
-                // Filter out expired contributions
-                allResources = allResources.where((r) => r.endDate.isAfter(DateTime.now())).toList();
+                // Filter out expired contributions and non-approved ones
+                allResources = allResources.where((r) => 
+                  r.endDate.isAfter(DateTime.now()) && 
+                  r.moderationStatus == 'approved'
+                ).toList();
 
                 // Apply category filters - check if resource type or any of its tags match
                 List<CommunityResource> filteredResources = allResources
@@ -871,8 +971,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                         ),
                       ),
                     ),
-                    // Resource count
-                  // Resource count - clickable to show list
+                    // Resource count - clickable to show list
                   Positioned(
                     bottom: 20,
                     left: 10,
@@ -911,237 +1010,262 @@ class _CommunityScreenState extends State<CommunityScreen> {
             ),
     );
   }
+  
   void _showResourcesList(List<CommunityResource> resources) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (BuildContext context) {
-      return DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) {
-          return Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Column(
-              children: [
-                // Drag handle
-                Container(
-                  margin: const EdgeInsets.symmetric(vertical: 12),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                children: [
+                  // Drag handle
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 12),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                ),
-                // Header
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.volunteer_activism, color: Colors.purple, size: 28),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const TranslatableText(
-                              'Community Resources',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.volunteer_activism, color: Colors.purple, size: 28),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const TranslatableText(
+                                'Community Resources',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                            TranslatableText(
-                              '${resources.length} available',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
+                              TranslatableText(
+                                '${resources.length} available',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 24),
-                // List of resources
-                Expanded(
-                  child: ListView.builder(
-                    controller: scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: resources.length,
-                    itemBuilder: (context, index) {
-                      final resource = resources[index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(
-                            color: _getColorForType(resource.type).withOpacity(0.3),
-                            width: 2,
+                            ],
                           ),
                         ),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(16),
-                          onTap: () {
-                            Navigator.pop(context); // Close the list
-                            _showResourceDetails(resource); // Show details
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: _getColorForType(resource.type).withOpacity(0.2),
-                                        borderRadius: BorderRadius.circular(12),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 24),
+                  // List of resources
+                  Expanded(
+                    child: ListView.builder(
+                      controller: scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: resources.length,
+                      itemBuilder: (context, index) {
+                        final resource = resources[index];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: _getColorForType(resource.type).withOpacity(0.3),
+                              width: 2,
+                            ),
+                          ),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () {
+                              Navigator.pop(context); // Close the list
+                              _showResourceDetails(resource); // Show details
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: _getColorForType(resource.type).withOpacity(0.2),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Icon(
+                                          _getIconForType(resource.type),
+                                          color: _getColorForType(resource.type),
+                                          size: 24,
+                                        ),
                                       ),
-                                      child: Icon(
-                                        _getIconForType(resource.type),
-                                        color: _getColorForType(resource.type),
-                                        size: 24,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          TranslatableText(
-                                            resource.type.toUpperCase(),
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: _getColorForType(resource.type),
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 0.5,
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            TranslatableText(
+                                              resource.type.toUpperCase(),
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: _getColorForType(resource.type),
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: 0.5,
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          TranslatableText(
-                                            resource.categories.join(' • '),
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
+                                            const SizedBox(height: 4),
+                                            TranslatableText(
+                                              resource.categories.join(' • '),
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
                                             ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                    Icon(
-                                      Icons.chevron_right,
-                                      color: Colors.grey[400],
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                TranslatableText(
-                                  resource.description,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[700],
-                                    height: 1.4,
+                                      // Verified badge in list (matching MapScreen)
+                                      if (resource.verified)
+                                        Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.verified,
+                                            color: Colors.white,
+                                            size: 16,
+                                          ),
+                                        )
+                                      else
+                                        Icon(
+                                          Icons.chevron_right,
+                                          color: Colors.grey[400],
+                                        ),
+                                    ],
                                   ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  children: [
-                                    Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: TranslatableText(
-                                        resource.location,
+                                  const SizedBox(height: 12),
+                                  TranslatableText(
+                                    resource.description,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[700],
+                                      height: 1.4,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: TranslatableText(
+                                          resource.location,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.grey[600],
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.directions_walk, size: 16, color: Colors.blue),
+                                      const SizedBox(width: 4),
+                                      TranslatableText(
+                                        _formatDistance(resource.distance),
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.blue,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
+                                      const SizedBox(width: 4),
+                                      TranslatableText(
+                                        '${resource.startTime} - ${resource.endTime}',
                                         style: TextStyle(
                                           fontSize: 13,
                                           color: Colors.grey[600],
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                Row(
-                                  children: [
-                                    Icon(Icons.directions_walk, size: 16, color: Colors.blue),
-                                    const SizedBox(width: 4),
-                                    TranslatableText(
-                                      _formatDistance(resource.distance),
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.blue,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
-                                    const SizedBox(width: 4),
-                                    TranslatableText(
-                                      '${resource.startTime} - ${resource.endTime}',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (resource.tags.isNotEmpty) ...[
-                                  const SizedBox(height: 12),
-                                  Wrap(
-                                    spacing: 6,
-                                    runSpacing: 6,
-                                    children: resource.tags.take(3).map((tag) {
-                                      return Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: _getColorForType(resource.type).withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(12),
+                                      // Show verified icon in timing row too
+                                      if (resource.verified) ...[
+                                        const SizedBox(width: 8),
+                                        const Icon(
+                                          Icons.verified,
+                                          color: Colors.blue,
+                                          size: 14,
                                         ),
-                                        child: TranslatableText(
-                                          tag,
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: _getColorForType(resource.type),
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      );
-                                    }).toList(),
+                                      ],
+                                    ],
                                   ),
+                                  if (resource.tags.isNotEmpty) ...[
+                                    const SizedBox(height: 12),
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 6,
+                                      children: resource.tags.take(3).map((tag) {
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: _getColorForType(resource.type).withOpacity(0.15),
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: TranslatableText(
+                                            tag,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: _getColorForType(resource.type),
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ],
                                 ],
-                              ],
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    },
-  );
-}
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   Widget _buildLegendItem(String label, Color color) {
     return Padding(
