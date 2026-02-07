@@ -83,10 +83,18 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
-    _keywords= widget.locationType == 'foodbank'
-       ? ['food bank', 'food charity', 'lost food project', 'food aid', 'charity food']
-       : ['homeless shelter', 'shelter', 'emergency housing', 'transit home', 'rumah perlindungan', 'refuge center',
-       'transitional housing', 'living center', 'living centre',"gelandangan"];
+  _keywords = widget.locationType == 'foodbank'
+    ? ['food bank', 'food charity', 'lost food project', 'food aid', 'charity food',
+      'food pantry', 'meal program', 
+      'food assistance', 'hunger relief', 'food rescue', 'community kitchen',
+      'bank makanan', 'bantuan makanan', 'makanan amal', 'projek makanan',
+      'dapur makanan', 'agihan makanan', 'bantuan kelaparan', 'makanan percuma',
+      'pusat makanan', 'derma makanan', 'rumah makan amal']
+     : ['homeless shelter', 'shelter', 'emergency housing', 'transit home', 
+        'rumah perlindungan', 'refuge center', 'transitional housing', 
+        'living center', 'living centre', 'gelandangan', 
+        'anjung singgah', 'house of hope',
+        'social services organization'];
 
     _loadFavorites();
     _initializeMap();
@@ -212,16 +220,19 @@ class _MapScreenState extends State<MapScreen> {
         }
         // Don't show 'community' type contributions yet
 
-        // Only add if it matches the map type, is not expired, and is approved
+        // Calculate distance FIRST
+        double distance = _calculateDistance(
+          _currentLocation.latitude,
+          _currentLocation.longitude,
+          contribution['lat'] as double,
+          contribution['lng'] as double,
+        );
+
+        // ⭐ NEW: Only add if within 10km radius, matches type, not expired, and approved
         if (shouldShow && 
+            distance <= 10.0 &&  // ← ADD THIS LINE (10km = 10.0)
             endDate.isAfter(DateTime.now()) &&
             moderationStatus == 'approved') {
-          double distance = _calculateDistance(
-            _currentLocation.latitude,
-            _currentLocation.longitude,
-            contribution['lat'] as double,
-            contribution['lng'] as double,
-          );
           
           final contributionPlace = FoodBankPlace(
             placeId: 'contrib_${doc.id}',
@@ -248,17 +259,16 @@ class _MapScreenState extends State<MapScreen> {
       }
     }
   }
-
   double _calculateDistance(double lat1, double lng1, double lat2, double lng2) {
-    return Geolocator.distanceBetween(lat1, lng1, lat2, lng2) / 1000;
-  }
-
-  String _formatDistance(double distanceKm) {
-    if (distanceKm < 1) {
-      return '${(distanceKm * 1000).round()} m away';
-    } else {
-      return '${distanceKm.toStringAsFixed(1)} km away';
+      return Geolocator.distanceBetween(lat1, lng1, lat2, lng2) / 1000;
     }
+
+    String _formatDistance(double distanceKm) {
+      if (distanceKm < 1) {
+        return '${(distanceKm * 1000).round()} m away';
+      } else {
+        return '${distanceKm.toStringAsFixed(1)} km away';
+      }
   }
 
   Future<void> _fetchPlaceDetails(FoodBankPlace place) async {
@@ -313,7 +323,6 @@ class _MapScreenState extends State<MapScreen> {
   
   Future<void> _searchFoodBanks(double lat, double lng) async {
     List<Map<String, dynamic>> allPlaces = [];
-    List<String> keywordsLower = _keywords.map((k) => k.toLowerCase()).toList();
 
     for (String keyword in _keywords) {
       final url =
@@ -342,15 +351,19 @@ class _MapScreenState extends State<MapScreen> {
 
           for (var place in results) {
             final String name = (place['name'] ?? '').toString().toLowerCase();
+            
+            // Skip excluded places (like "Shelter Security")
             if(_shouldExcludePlace(name)) continue;
-
-            bool containsKeyword = keywordsLower.any((k) => name.contains(k));
-
-            if (containsKeyword) {
-              bool alreadyExists = allPlaces.any((p) => p['place_id'] == place['place_id']);
-              if (!alreadyExists) {
-                allPlaces.add(place);
+              bool containsKeyword = _keywords.any((k) => name.contains(k.toLowerCase()));
+              if (!containsKeyword) {
+                print('⚠️ Skipping: $name (keyword not found)');
+                continue;
               }
+
+            // Check if already added (avoid duplicates from different keyword searches)
+            bool alreadyExists = allPlaces.any((p) => p['place_id'] == place['place_id']);
+            if (!alreadyExists) {
+              allPlaces.add(place);
             }
           }
         }
