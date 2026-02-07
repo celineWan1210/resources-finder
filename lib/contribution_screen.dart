@@ -10,6 +10,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'services/firestore_service.dart';
 import 'services/location_service.dart';
 import 'services/moderation_service_no_functions.dart';
+import 'widgets/translatable_text.dart';
 
 
 
@@ -194,7 +195,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
     if (_selectedCategories.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select at least one contribution type'),
+          content: TranslatableText('Please select at least one contribution type'),
           backgroundColor: Colors.red,
         ),
       );
@@ -264,7 +265,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please log in to submit contributions'),
+          content: TranslatableText('Please log in to submit contributions'),
           backgroundColor: Colors.red,
         ),
       );
@@ -276,7 +277,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
     if (isBlacklisted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Your account has been restricted from posting due to policy violations.'),
+          content: TranslatableText('Your account has been restricted from posting due to policy violations.'),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 5),
         ),
@@ -297,7 +298,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
         _quantityController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please fill in all required fields'),
+          content: TranslatableText('Please fill in all required fields'),
           backgroundColor: Colors.red,
         ),
       );
@@ -359,7 +360,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
               ),
             ),
             SizedBox(width: 16),
-            Text('Submitting and checking with AI...'),
+            TranslatableText('Submitting and checking with AI...'),
           ],
         ),
         duration: Duration(seconds: 10),
@@ -392,7 +393,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('✓ Contribution submitted! AI is reviewing it now.'),
+          content: TranslatableText('✓ Contribution submitted! AI is reviewing it now.'),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
         ),
@@ -406,7 +407,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error saving contribution: $e'),
+          content: TranslatableText('Error saving contribution: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -438,7 +439,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message),
+          content: TranslatableText(message),
           backgroundColor: color,
           duration: const Duration(seconds: 4),
         ),
@@ -468,16 +469,16 @@ class _ContributionScreenState extends State<ContributionScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Contribution'),
-        content: const Text('Are you sure you want to delete this contribution?'),
+        title: const TranslatableText('Delete Contribution'),
+        content: const TranslatableText('Are you sure you want to delete this contribution?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const TranslatableText('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const TranslatableText('Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -499,12 +500,12 @@ class _ContributionScreenState extends State<ContributionScreen> {
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Contribution deleted')),
+            const SnackBar(content: TranslatableText('Contribution deleted')),
           );
         }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error deleting: $e'), backgroundColor: Colors.red),
+          SnackBar(content: TranslatableText('Error deleting: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -533,12 +534,12 @@ class _ContributionScreenState extends State<ContributionScreen> {
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Marked as completed')),
+          const SnackBar(content: TranslatableText('Marked as completed')),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(content: TranslatableText('Error: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -547,7 +548,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Community Contribution'),
+        title: const TranslatableText('Community Contribution'),
         elevation: 0,
         actions: [
           // Add button to check moderation status
@@ -602,14 +603,14 @@ class _ContributionScreenState extends State<ContributionScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          TranslatableText(
             'Step 1 of 2: What can you contribute?',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: Colors.grey[600],
             ),
           ),
           const SizedBox(height: 8),
-          Text(
+          TranslatableText(
             'Select one or more categories',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.bold,
@@ -645,7 +646,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
+              child: const TranslatableText(
                 'Continue to Details',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
@@ -692,7 +693,7 @@ Widget _buildCategoryCard(ContributionCategory category) {
             color: category.color,
           ),
           const SizedBox(height: 12),
-          Text(
+          TranslatableText(
             category.label,
             textAlign: TextAlign.center,
             style: const TextStyle(
@@ -702,7 +703,7 @@ Widget _buildCategoryCard(ContributionCategory category) {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
+          TranslatableText(
             category.description,
             textAlign: TextAlign.center,
             style: TextStyle(
@@ -762,14 +763,14 @@ Widget _buildLocationSection() {
             groupValue: _useCurrentLocation,
             onChanged: (val) => setState(() => _useCurrentLocation = true),
           ),
-          const Text('Use Current Location'),
+          const TranslatableText('Use Current Location'),
           const SizedBox(width: 16),
           Radio<bool>(
             value: false,
             groupValue: _useCurrentLocation,
             onChanged: (val) => setState(() => _useCurrentLocation = false),
           ),
-          const Text('Enter Manually'),
+          const TranslatableText('Enter Manually'),
         ],
       ),
       if (!_useCurrentLocation)
@@ -790,14 +791,14 @@ Widget _buildAvailabilitySection() {
           Expanded(
             child: ElevatedButton(
               onPressed: () => _selectDate(context, true),
-              child: Text('Start Date: ${DateFormat('MMM dd, yyyy').format(_startDate)}'),
+              child: TranslatableText('Start Date: ${DateFormat('MMM dd, yyyy').format(_startDate)}'),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: ElevatedButton(
               onPressed: () => _selectDate(context, false),
-              child: Text('End Date: ${DateFormat('MMM dd, yyyy').format(_endDate)}'),
+              child: TranslatableText('End Date: ${DateFormat('MMM dd, yyyy').format(_endDate)}'),
             ),
           ),
         ],
@@ -808,14 +809,14 @@ Widget _buildAvailabilitySection() {
           Expanded(
             child: ElevatedButton(
               onPressed: () => _selectTime(context, true),
-              child: Text('Start Time: ${_startTime.format(context)}'),
+              child: TranslatableText('Start Time: ${_startTime.format(context)}'),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: ElevatedButton(
               onPressed: () => _selectTime(context, false),
-              child: Text('End Time: ${_endTime.format(context)}'),
+              child: TranslatableText('End Time: ${_endTime.format(context)}'),
             ),
           ),
         ],
@@ -836,7 +837,7 @@ Widget _buildTagsSection() {
     children: allTags.map((tag) {
       final isSelected = _selectedTags.contains(tag);
       return FilterChip(
-        label: Text(tag),
+        label: TranslatableText(tag),
         selected: isSelected,
         onSelected: (selected) {
           setState(() {
@@ -924,7 +925,7 @@ Future<void> _syncModerationStatus() async {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          TranslatableText(
             'Step 2 of 2: Fill in the details',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: Colors.grey[600],
@@ -937,7 +938,7 @@ Future<void> _syncModerationStatus() async {
             children: _selectedCategories.map((catId) {
               final category = _categories.firstWhere((c) => c.id == catId);
               return Chip(
-                label: Text(category.label),
+                label: TranslatableText(category.label),
                 backgroundColor: category.color.withOpacity(0.3),
                 deleteIcon: const Icon(Icons.edit),
                 onDeleted: _goBackToSelection,
@@ -946,7 +947,7 @@ Future<void> _syncModerationStatus() async {
           ),
           
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Details *',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -967,7 +968,7 @@ Future<void> _syncModerationStatus() async {
           ),
           
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Location',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -975,7 +976,7 @@ Future<void> _syncModerationStatus() async {
           _buildLocationSection(),
           
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Availability',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -983,7 +984,7 @@ Future<void> _syncModerationStatus() async {
           _buildAvailabilitySection(),
           
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Categories (Optional)',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -991,7 +992,7 @@ Future<void> _syncModerationStatus() async {
           _buildTagsSection(),
           
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Contact Information (Optional)',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -1004,7 +1005,7 @@ Future<void> _syncModerationStatus() async {
           ),
           
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Photo (Optional)',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -1023,7 +1024,7 @@ Future<void> _syncModerationStatus() async {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('Back'),
+                  child: const TranslatableText('Back'),
                 ),
               ),
               const SizedBox(width: 16),
@@ -1038,7 +1039,7 @@ Future<void> _syncModerationStatus() async {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
+                  child: const TranslatableText(
                     'Submit',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
@@ -1060,7 +1061,7 @@ Future<void> _syncModerationStatus() async {
           children: [
             Icon(Icons.inbox, size: 80, color: Colors.grey[400]),
             const SizedBox(height: 16),
-            Text(
+            TranslatableText(
               'No contributions yet',
               style: TextStyle(fontSize: 18, color: Colors.grey[600]),
             ),
@@ -1118,7 +1119,7 @@ Future<void> _syncModerationStatus() async {
         : _myContributions.where((c) => c['type'] == type).toList();
     
     return FilterChip(
-      label: Text('$label (${filteredList.length})'),
+      label: TranslatableText('$label (${filteredList.length})'),
       selected: isSelected,
       onSelected: (selected) {
         setState(() {
@@ -1207,7 +1208,7 @@ Widget _buildContributionCard(Map<String, dynamic> contribution) {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    TranslatableText(
                       categories.join(', '),
                       style: TextStyle(
                         fontSize: 18,
@@ -1215,7 +1216,7 @@ Widget _buildContributionCard(Map<String, dynamic> contribution) {
                         color: isActive ? Colors.green[900] : Colors.grey[700],
                       ),
                     ),
-                    Text(
+                    TranslatableText(
                       'Posted ${DateFormat('MMM dd, yyyy').format(createdAt)}',
                       style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
@@ -1228,7 +1229,7 @@ Widget _buildContributionCard(Map<String, dynamic> contribution) {
                   color: isActive ? Colors.green : Colors.grey,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(
+                child: TranslatableText(
                   isActive ? 'ACTIVE' : 'COMPLETED',
                   style: const TextStyle(
                     color: Colors.white,
@@ -1260,7 +1261,7 @@ Widget _buildContributionCard(Map<String, dynamic> contribution) {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      TranslatableText(
                         statusText,
                         style: TextStyle(
                           color: statusColor,
@@ -1269,7 +1270,7 @@ Widget _buildContributionCard(Map<String, dynamic> contribution) {
                         ),
                       ),
                       if (moderationStatus == 'flagged' && moderationReason != null)
-                        Text(
+                        TranslatableText(
                           moderationReason,
                           style: TextStyle(
                             color: statusColor.withOpacity(0.8),
@@ -1279,7 +1280,7 @@ Widget _buildContributionCard(Map<String, dynamic> contribution) {
                           overflow: TextOverflow.ellipsis,
                         ),
                       if (moderationStatus == 'pending')
-                        Text(
+                        TranslatableText(
                           'AI is reviewing your post...',
                           style: TextStyle(
                             color: statusColor.withOpacity(0.8),
@@ -1296,7 +1297,7 @@ Widget _buildContributionCard(Map<String, dynamic> contribution) {
                       color: riskScore == 'high' ? Colors.red : Colors.orange,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
+                    child: TranslatableText(
                       riskScore.toUpperCase(),
                       style: const TextStyle(
                         color: Colors.white,
@@ -1343,7 +1344,7 @@ Widget _buildContributionCard(Map<String, dynamic> contribution) {
                   runSpacing: 8,
                   children: (contribution['tags'] as List).map((tag) {
                     return Chip(
-                      label: Text(tag, style: const TextStyle(fontSize: 12)),
+                      label: TranslatableText(tag, style: const TextStyle(fontSize: 12)),
                       backgroundColor: Colors.blue[50],
                       padding: const EdgeInsets.all(4),
                     );
@@ -1363,7 +1364,7 @@ Widget _buildContributionCard(Map<String, dynamic> contribution) {
                   child: OutlinedButton.icon(
                     onPressed: () => _markAsCompleted(contribution['id']),
                     icon: const Icon(Icons.check_circle, size: 18),
-                    label: const Text('Mark Complete'),
+                    label: const TranslatableText('Mark Complete'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.green,
                     ),
@@ -1374,7 +1375,7 @@ Widget _buildContributionCard(Map<String, dynamic> contribution) {
                   child: OutlinedButton.icon(
                     onPressed: () => _deleteContribution(contribution['id']),
                     icon: const Icon(Icons.delete, size: 18),
-                    label: const Text('Delete'),
+                    label: const TranslatableText('Delete'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
                     ),
@@ -1395,7 +1396,7 @@ Widget _buildContributionCard(Map<String, dynamic> contribution) {
         Icon(icon, size: 18, color: Colors.grey[600]),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
+          child: TranslatableText(
             text,
             style: const TextStyle(fontSize: 14),
           ),
@@ -1414,7 +1415,7 @@ Widget _buildContributionCard(Map<String, dynamic> contribution) {
         }
       },
       icon: Icon(icon, size: 20),
-      label: Text(label, style: const TextStyle(fontSize: 14)),
+      label: TranslatableText(label, style: const TextStyle(fontSize: 14)),
       style: ElevatedButton.styleFrom(
         backgroundColor: isSelected ? Theme.of(context).primaryColor : Colors.grey[300],
         foregroundColor: isSelected ? Colors.white : Colors.black87,

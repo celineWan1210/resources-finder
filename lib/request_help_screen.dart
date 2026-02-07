@@ -10,6 +10,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'services/location_service.dart';
 import 'services/moderation_service_no_functions.dart';  
 import 'map_screen.dart';
+import 'widgets/translatable_text.dart';
 
 class RequestHelpScreen extends StatefulWidget {
   const RequestHelpScreen({super.key});
@@ -297,7 +298,7 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error finding matches: ${e.toString()}'),
+          content: TranslatableText('Error finding matches: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -343,7 +344,7 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please log in to submit requests'),
+          content: TranslatableText('Please log in to submit requests'),
           backgroundColor: Colors.red,
         ),
       );
@@ -355,7 +356,7 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
     if (isBlacklisted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Your account has been restricted from posting due to policy violations.'),
+          content: TranslatableText('Your account has been restricted from posting due to policy violations.'),
           backgroundColor: Colors.red,
           duration: Duration(seconds: 5),
         ),
@@ -375,7 +376,7 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
     if (location.isEmpty || _selectedCategories.isEmpty || _quantityController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select category and fill in quantity'),
+          content: TranslatableText('Please select category and fill in quantity'),
           backgroundColor: Colors.red,
         ),
       );
@@ -418,7 +419,7 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
               ),
             ),
             SizedBox(width: 16),
-            Text('Submitting and checking with AI...'),
+           TranslatableText('Submitting and checking with AI...'),
           ],
         ),
         duration: Duration(seconds: 10),
@@ -456,7 +457,7 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
         final matchCount = (request['matches'] as List).length;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(matchCount > 0
+            content: TranslatableText(matchCount > 0
                 ? '✓ Request submitted! Found $matchCount match${matchCount > 1 ? 'es' : ''}! AI is reviewing it now.'
                 : '✓ Request submitted! AI is reviewing it now. We\'ll notify you when help is available.'),
             backgroundColor: matchCount > 0 ? Colors.green : Colors.orange,
@@ -474,7 +475,7 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error saving request: $e'),
+          content: TranslatableText('Error saving request: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -496,16 +497,16 @@ Future<void> _deleteRequest(String id) async {
   final confirm = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('Delete Request'),
-      content: const Text('Are you sure you want to delete this request?'),
+      title: const TranslatableText('Delete Request'),
+      content: const TranslatableText('Are you sure you want to delete this request?'),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: const Text('Cancel'),
+          child: const TranslatableText('Cancel'),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context, true),
-          child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          child: const TranslatableText('Delete', style: TextStyle(color: Colors.red)),
         ),
       ],
     ),
@@ -530,12 +531,12 @@ Future<void> _deleteRequest(String id) async {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Request deleted')),
+          const SnackBar(content: TranslatableText('Request deleted')),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error deleting: $e'), backgroundColor: Colors.red),
+        SnackBar(content: TranslatableText('Error deleting: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -552,7 +553,7 @@ Future<void> _deleteRequest(String id) async {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✓ Marked as fulfilled. Thank you!')),
+        const SnackBar(content: TranslatableText('✓ Marked as fulfilled. Thank you!')),
       );
     }
   }
@@ -571,7 +572,7 @@ Future<void> _deleteRequest(String id) async {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Edit Request'),
+          title: const TranslatableText('Edit Request'),
           content: SingleChildScrollView(
             child: SizedBox(
               width: MediaQuery.of(context).size.width * 0.9,
@@ -579,7 +580,7 @@ Future<void> _deleteRequest(String id) async {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  const TranslatableText(
                     'Categories',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
@@ -591,7 +592,7 @@ Future<void> _deleteRequest(String id) async {
                       final isSelected = tempSelectedCategories.contains(category.id);
                       return FilterChip(
                         selected: isSelected,
-                        label: Text(category.label, style: const TextStyle(fontSize: 12)),
+                        label: TranslatableText(category.label, style: const TextStyle(fontSize: 12)),
                         selectedColor: category.color,
                         checkmarkColor: Colors.white,
                         labelStyle: TextStyle(
@@ -614,7 +615,7 @@ Future<void> _deleteRequest(String id) async {
                   ),
                   if (tempSelectedCategories.isNotEmpty) ...[
                     const SizedBox(height: 16),
-                    const Text(
+                    const TranslatableText(
                       'Preferences',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
@@ -627,7 +628,7 @@ Future<void> _deleteRequest(String id) async {
                         return tags.map((tag) {
                           final isSelected = tempSelectedTags.contains(tag);
                           return FilterChip(
-                            label: Text(tag, style: const TextStyle(fontSize: 11)),
+                            label: TranslatableText(tag, style: const TextStyle(fontSize: 11)),
                             selected: isSelected,
                             selectedColor: Colors.purple[200],
                             checkmarkColor: Colors.purple[700],
@@ -680,13 +681,13 @@ Future<void> _deleteRequest(String id) async {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
+              child: const TranslatableText('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
                 if (tempSelectedCategories.isEmpty || tempQuantityController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please select category and fill in quantity')),
+                    const SnackBar(content: TranslatableText('Please select category and fill in quantity')),
                   );
                   return;
                 }
@@ -696,7 +697,7 @@ Future<void> _deleteRequest(String id) async {
                 backgroundColor: Colors.purple[600],
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Update'),
+              child: const TranslatableText('Update'),
             ),
           ],
         ),
@@ -723,7 +724,7 @@ Future<void> _deleteRequest(String id) async {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('✓ Request updated successfully!'),
+              content: TranslatableText('✓ Request updated successfully!'),
               backgroundColor: Colors.green,
             ),
           );
@@ -744,7 +745,7 @@ Future<void> _deleteRequest(String id) async {
     
     if (lat == null || lng == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Location not available')),
+        const SnackBar(content: TranslatableText('Location not available')),
       );
       return;
     }
@@ -777,7 +778,7 @@ Future<void> _deleteRequest(String id) async {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Request Help'),
+        title: const TranslatableText('Request Help'),
         elevation: 0,
         backgroundColor: Colors.purple[600],
         foregroundColor: Colors.white,
@@ -835,7 +836,7 @@ Future<void> _deleteRequest(String id) async {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: const [
-                      Text(
+                     TranslatableText(
                         'Need Help Urgently?',
                         style: TextStyle(
                           color: Colors.white,
@@ -844,7 +845,7 @@ Future<void> _deleteRequest(String id) async {
                         ),
                       ),
                       SizedBox(height: 4),
-                      Text(
+                     TranslatableText(
                         'We\'ll match you with nearby helpers immediately',
                         style: TextStyle(color: Colors.white, fontSize: 13),
                       ),
@@ -856,7 +857,7 @@ Future<void> _deleteRequest(String id) async {
           ),
 
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'What do you need? *',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
@@ -877,7 +878,7 @@ Future<void> _deleteRequest(String id) async {
                       children: [
                         Icon(category.icon, size: 18, color: isSelected ? Colors.white : category.color),
                         const SizedBox(width: 8),
-                        Text(category.label),
+                       TranslatableText(category.label),
                       ],
                     ),
                     selectedColor: category.color,
@@ -902,7 +903,7 @@ Future<void> _deleteRequest(String id) async {
           ),
 
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'How much/many? *',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -914,7 +915,7 @@ Future<void> _deleteRequest(String id) async {
           ),
 
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Additional Details (Optional)',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -927,7 +928,7 @@ Future<void> _deleteRequest(String id) async {
           ),
 
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Your Location',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -936,7 +937,7 @@ Future<void> _deleteRequest(String id) async {
 
           if (_selectedCategories.isNotEmpty) ...[
             const SizedBox(height: 24),
-            const Text(
+            const TranslatableText(
               'Preferences (Optional)',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
@@ -945,7 +946,7 @@ Future<void> _deleteRequest(String id) async {
           ],
 
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Contact (Optional but Recommended)',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -976,7 +977,7 @@ Future<void> _deleteRequest(String id) async {
                 children: const [
                   Icon(Icons.send, size: 20),
                   SizedBox(width: 8),
-                  Text(
+                 TranslatableText(
                     'Submit Urgent Request',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
@@ -1035,7 +1036,7 @@ Future<void> _deleteRequest(String id) async {
               Icon(Icons.my_location, size: 18, color: Colors.blue[700]),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
+                child: TranslatableText(
                   _currentLocationName,
                   style: const TextStyle(fontWeight: FontWeight.w500),
                 ),
@@ -1058,7 +1059,7 @@ Future<void> _deleteRequest(String id) async {
                 onChanged: (val) => setState(() => _useCurrentLocation = false),
                 activeColor: Colors.purple[600],
               ),
-              const Text('Enter manually'),
+              const TranslatableText('Enter manually'),
             ],
           ),
         ),
@@ -1083,7 +1084,7 @@ Future<void> _deleteRequest(String id) async {
         return tags.map((tag) {
           final isSelected = _selectedTags.contains(tag);
           return FilterChip(
-            label: Text(tag, style: const TextStyle(fontSize: 13)),
+            label: TranslatableText(tag, style: const TextStyle(fontSize: 13)),
             selected: isSelected,
             selectedColor: Colors.purple[200],
             checkmarkColor: Colors.purple[700],
@@ -1110,12 +1111,12 @@ Future<void> _deleteRequest(String id) async {
           children: [
             Icon(Icons.inbox_outlined, size: 80, color: Colors.grey[300]),
             const SizedBox(height: 16),
-            Text(
+           TranslatableText(
               'No requests yet',
               style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 8),
-            Text(
+           TranslatableText(
               'Submit a request to get matched with helpers',
               style: TextStyle(fontSize: 14, color: Colors.grey[500]),
               textAlign: TextAlign.center,
@@ -1169,7 +1170,7 @@ Future<void> _deleteRequest(String id) async {
         : _myRequests.where((r) => r['status'] == status).toList();
 
     return FilterChip(
-      label: Text('$label (${filteredList.length})'),
+      label: TranslatableText('$label (${filteredList.length})'),
       selected: isSelected,
       onSelected: (selected) {
         setState(() {
@@ -1264,7 +1265,7 @@ Future<void> _deleteRequest(String id) async {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                   TranslatableText(
                       categories.join(' • '),
                       style: const TextStyle(
                         fontSize: 18,
@@ -1272,7 +1273,7 @@ Future<void> _deleteRequest(String id) async {
                         color: Colors.white,
                       ),
                     ),
-                    Text(
+                   TranslatableText(
                       DateFormat('MMM dd, yyyy - h:mm a').format(createdAt),
                       style: TextStyle(
                         fontSize: 12,
@@ -1304,7 +1305,7 @@ Future<void> _deleteRequest(String id) async {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                     TranslatableText(
                         statusText,
                         style: TextStyle(
                           color: statusColor,
@@ -1313,7 +1314,7 @@ Future<void> _deleteRequest(String id) async {
                         ),
                       ),
                       if (moderationStatus == 'flagged' && moderationReason != null)
-                        Text(
+                       TranslatableText(
                           moderationReason,
                           style: TextStyle(
                             color: statusColor.withOpacity(0.8),
@@ -1323,7 +1324,7 @@ Future<void> _deleteRequest(String id) async {
                           overflow: TextOverflow.ellipsis,
                         ),
                       if (moderationStatus == 'rejected' && moderationReason != null)
-                        Text(
+                       TranslatableText(
                           moderationReason,
                           style: TextStyle(
                             color: statusColor.withOpacity(0.8),
@@ -1333,7 +1334,7 @@ Future<void> _deleteRequest(String id) async {
                           overflow: TextOverflow.ellipsis,
                         ),
                       if (moderationStatus == 'pending')
-                        Text(
+                       TranslatableText(
                           'AI is reviewing your request...',
                           style: TextStyle(
                             color: statusColor.withOpacity(0.8),
@@ -1350,7 +1351,7 @@ Future<void> _deleteRequest(String id) async {
                       color: riskScore == 'high' ? Colors.red : Colors.orange,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
+                    child: TranslatableText(
                       riskScore.toUpperCase(),
                       style: const TextStyle(
                         color: Colors.white,
@@ -1396,7 +1397,7 @@ Future<void> _deleteRequest(String id) async {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
+                             TranslatableText(
                                 '${matches.length} Helper${matches.length > 1 ? 's' : ''} Found!',
                                 style: const TextStyle(
                                   fontSize: 16,
@@ -1404,7 +1405,7 @@ Future<void> _deleteRequest(String id) async {
                                   color: Colors.white,
                                 ),
                               ),
-                              const Text(
+                              const TranslatableText(
                                 'Tap to view and contact',
                                 style: TextStyle(color: Colors.white, fontSize: 13),
                               ),
@@ -1431,7 +1432,7 @@ Future<void> _deleteRequest(String id) async {
                       Icon(Icons.search, color: Colors.orange[700], size: 24),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
+                        child: TranslatableText(
                           'Searching for helpers nearby...',
                           style: TextStyle(
                             fontSize: 14,
@@ -1458,7 +1459,7 @@ Future<void> _deleteRequest(String id) async {
                       Icon(Icons.hourglass_empty, color: Colors.grey[700], size: 24),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
+                        child: TranslatableText(
                           moderationStatus == 'pending' 
                             ? 'Matching will begin after AI approval'
                             : 'This request cannot be matched at this time',
@@ -1486,7 +1487,7 @@ Future<void> _deleteRequest(String id) async {
                         Icon(Icons.search, color: Colors.orange[700], size: 24),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: Text(
+                          child: TranslatableText(
                             'Searching for helpers nearby...',
                             style: TextStyle(
                               fontSize: 14,
@@ -1507,7 +1508,7 @@ Future<void> _deleteRequest(String id) async {
                     runSpacing: 6,
                     children: (request['tags'] as List).map((tag) {
                       return Chip(
-                        label: Text(tag, style: const TextStyle(fontSize: 11)),
+                        label: TranslatableText(tag, style: const TextStyle(fontSize: 11)),
                         backgroundColor: Colors.purple[50],
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       );
@@ -1527,7 +1528,7 @@ Future<void> _deleteRequest(String id) async {
                     child: OutlinedButton.icon(
                       onPressed: () => _editRequest(request),
                       icon: const Icon(Icons.edit, size: 18),
-                      label: const Text('Edit'),
+                      label: const TranslatableText('Edit'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.purple[600],
                         side: BorderSide(color: Colors.purple[600]!),
@@ -1546,7 +1547,7 @@ Future<void> _deleteRequest(String id) async {
                             final newMatches = (request['matches'] as List).length;
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(newMatches > 0
+                                content: TranslatableText(newMatches > 0
                                     ? 'Found $newMatches match${newMatches > 1 ? 'es' : ''}!'
                                     : 'No matches yet. Will keep searching.'),
                               ),
@@ -1554,7 +1555,7 @@ Future<void> _deleteRequest(String id) async {
                           }
                         },
                         icon: const Icon(Icons.refresh, size: 18),
-                        label: const Text('Refresh'),
+                        label: const TranslatableText('Refresh'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.purple[600],
                           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1567,7 +1568,7 @@ Future<void> _deleteRequest(String id) async {
                     child: ElevatedButton.icon(
                       onPressed: () => _markAsFulfilled(request['id']),
                       icon: const Icon(Icons.check, size: 18),
-                      label: const Text('Got Help'),
+                      label: const TranslatableText('Got Help'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue[600],
                         foregroundColor: Colors.white,
@@ -1625,7 +1626,7 @@ Future<void> _deleteRequest(String id) async {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                         TranslatableText(
                             '${matches.length} Helper${matches.length > 1 ? 's' : ''} Available',
                             style: const TextStyle(
                               fontSize: 22,
@@ -1633,7 +1634,7 @@ Future<void> _deleteRequest(String id) async {
                               color: Colors.white,
                             ),
                           ),
-                          const Text(
+                          const TranslatableText(
                             'Choose the best match for you',
                             style: TextStyle(color: Colors.white, fontSize: 14),
                           ),
@@ -1687,7 +1688,7 @@ Future<void> _deleteRequest(String id) async {
                               Row(
                                 children: [
                                   Expanded(
-                                    child: Text(
+                                    child: TranslatableText(
                                       categories.join(' • '),
                                       style: const TextStyle(
                                         fontSize: 18,
@@ -1702,7 +1703,7 @@ Future<void> _deleteRequest(String id) async {
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(color: qualityColor, width: 1.5),
                                     ),
-                                    child: Text(
+                                    child: TranslatableText(
                                       matchQuality,
                                       style: TextStyle(
                                         fontSize: 11,
@@ -1714,7 +1715,7 @@ Future<void> _deleteRequest(String id) async {
                                 ],
                               ),
                               const SizedBox(height: 12),
-                              Text(
+                             TranslatableText(
                                 contrib['description']?.toString() ?? 'No description',
                                 style: const TextStyle(fontSize: 15),
                               ),
@@ -1739,7 +1740,7 @@ Future<void> _deleteRequest(String id) async {
                                         children: [
                                           Icon(Icons.location_on, size: 16, color: Colors.blue[700]),
                                           const SizedBox(width: 4),
-                                          Text(
+                                         TranslatableText(
                                             '${distance.toStringAsFixed(1)} km away',
                                             style: TextStyle(
                                               fontSize: 13, 
@@ -1756,7 +1757,7 @@ Future<void> _deleteRequest(String id) async {
                                   const SizedBox(width: 16),
                                   Icon(Icons.inventory_2, size: 16, color: Colors.grey[600]),
                                   const SizedBox(width: 4),
-                                  Text(
+                                 TranslatableText(
                                     '${contrib['quantity']?.toString() ?? 'N/A'} available',
                                     style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                                   ),
@@ -1780,7 +1781,7 @@ Future<void> _deleteRequest(String id) async {
                                         children: [
                                           Icon(Icons.phone, size: 16, color: Colors.green[700]),
                                           const SizedBox(width: 8),
-                                          const Text(
+                                          const TranslatableText(
                                             'Contact Information',
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
@@ -1793,7 +1794,7 @@ Future<void> _deleteRequest(String id) async {
                                       Row(
                                         children: [
                                           Expanded(
-                                            child: Text(
+                                            child: TranslatableText(
                                               contrib['contact'].toString(),
                                               style: TextStyle(
                                                 fontSize: 15,
@@ -1809,14 +1810,14 @@ Future<void> _deleteRequest(String id) async {
                                               );
                                               ScaffoldMessenger.of(context).showSnackBar(
                                                 SnackBar(
-                                                  content: const Text('✓ Contact copied to clipboard'),
+                                                  content: const TranslatableText('✓ Contact copied to clipboard'),
                                                   backgroundColor: Colors.green[700],
                                                   duration: const Duration(seconds: 2),
                                                 ),
                                               );
                                             },
                                             icon: const Icon(Icons.copy, size: 16),
-                                            label: const Text('Copy'),
+                                            label: const TranslatableText('Copy'),
                                             style: TextButton.styleFrom(
                                               foregroundColor: Colors.green[700],
                                               backgroundColor: Colors.white,
@@ -1842,7 +1843,7 @@ Future<void> _deleteRequest(String id) async {
                                       Icon(Icons.info_outline, size: 18, color: Colors.orange[700]),
                                       const SizedBox(width: 8),
                                       Expanded(
-                                        child: Text(
+                                        child: TranslatableText(
                                           'No contact info provided. Check location on map.',
                                           style: TextStyle(fontSize: 12, color: Colors.orange[900]),
                                         ),
@@ -1862,7 +1863,7 @@ Future<void> _deleteRequest(String id) async {
                         color: Colors.red[50],
                         child: Padding(
                           padding: const EdgeInsets.all(16),
-                          child: Text(
+                          child: TranslatableText(
                             'Error loading match: ${e.toString()}',
                             style: TextStyle(color: Colors.red[900]),
                           ),
@@ -1886,7 +1887,7 @@ Future<void> _deleteRequest(String id) async {
         Icon(icon, size: 18, color: Colors.grey[600]),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
+          child: TranslatableText(
             text,
             style: const TextStyle(fontSize: 14),
           ),
@@ -1905,7 +1906,7 @@ Future<void> _deleteRequest(String id) async {
         }
       },
       icon: Icon(icon, size: 20),
-      label: Text(label, style: const TextStyle(fontSize: 14)),
+      label: TranslatableText(label, style: const TextStyle(fontSize: 14)),
       style: ElevatedButton.styleFrom(
         backgroundColor: isSelected ? Colors.purple[600] : Colors.grey[200],
         foregroundColor: isSelected ? Colors.white : Colors.black87,

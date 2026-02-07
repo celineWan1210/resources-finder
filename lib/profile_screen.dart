@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math';
+import 'widgets/translatable_text.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -54,7 +55,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        title: const Text(
+        title: const TranslatableText(
           'Profile',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
@@ -98,7 +99,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     fit: BoxFit.cover,
                                   ),
                                 )
-                              : Text(
+                              : TranslatableText(
                                   user?.displayName?.substring(0, 1).toUpperCase() ?? 'U',
                                   style: const TextStyle(
                                     fontSize: 48,
@@ -108,7 +109,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                         ),
                         const SizedBox(height: 16),
-                        Text(
+                        TranslatableText(
                           user?.displayName ?? 'User',
                           style: const TextStyle(
                             fontSize: 24,
@@ -117,7 +118,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Text(
+                        TranslatableText(
                           user?.email ?? '',
                           style: TextStyle(
                             fontSize: 16,
@@ -194,7 +195,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           subtitle: 'Update your profile information',
                           onTap: () {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Edit profile feature coming soon!')),
+                              const SnackBar(content: TranslatableText('Edit profile feature coming soon!')),
                             );
                           },
                         ),
@@ -206,7 +207,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           subtitle: 'Manage your preferences',
                           onTap: () {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Settings feature coming soon!')),
+                              const SnackBar(content: TranslatableText('Settings feature coming soon!')),
                             );
                           },
                         ),
@@ -218,7 +219,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           subtitle: 'Get help with the app',
                           onTap: () {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Help & Support feature coming soon!')),
+                              const SnackBar(content: TranslatableText('Help & Support feature coming soon!')),
                             );
                           },
                         ),
@@ -233,19 +234,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             final confirm = await showDialog<bool>(
                               context: context,
                               builder: (context) => AlertDialog(
-                                title: const Text('Logout'),
-                                content: const Text('Are you sure you want to logout?'),
+                                title: const TranslatableText('Logout'),
+                                content: const TranslatableText('Are you sure you want to logout?'),
                                 actions: [
                                   TextButton(
                                     onPressed: () => Navigator.pop(context, false),
-                                    child: const Text('Cancel'),
+                                    child: const TranslatableText('Cancel'),
                                   ),
                                   ElevatedButton(
                                     onPressed: () => Navigator.pop(context, true),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.red,
                                     ),
-                                    child: const Text('Logout'),
+                                    child: const TranslatableText('Logout'),
                                   ),
                                 ],
                               ),
@@ -269,7 +270,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildSectionTitle(String title) {
-    return Text(
+    return TranslatableText(
       title,
       style: TextStyle(
         fontSize: 18,
@@ -313,7 +314,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                TranslatableText(
                   title,
                   style: TextStyle(
                     fontSize: 12,
@@ -321,7 +322,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
+                TranslatableText(
                   value,
                   style: const TextStyle(
                     fontSize: 16,
@@ -353,7 +354,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Icon(icon, color: color, size: 32),
           const SizedBox(height: 8),
-          Text(
+          TranslatableText(
             value,
             style: TextStyle(
               fontSize: 24,
@@ -362,7 +363,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
+          TranslatableText(
             title,
             style: TextStyle(
               fontSize: 12,
@@ -416,7 +417,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  TranslatableText(
                     title,
                     style: const TextStyle(
                       fontSize: 16,
@@ -424,7 +425,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
+                  TranslatableText(
                     subtitle,
                     style: TextStyle(
                       fontSize: 12,
@@ -455,14 +456,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: const [
             Icon(Icons.verified_user, color: Colors.purple),
             SizedBox(width: 12),
-            Text('Generate Code'),
+            TranslatableText('Generate Code'),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            const TranslatableText(
               'Generate a verification code to access the moderator portal.',
               style: TextStyle(fontSize: 14),
             ),
@@ -479,7 +480,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Icon(Icons.email, color: Colors.purple[700], size: 20),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
+                    child: TranslatableText(
                       user.email ?? '',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
@@ -504,7 +505,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Icon(Icons.info_outline, color: Colors.amber[800], size: 20),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
+                    child: TranslatableText(
                       'The code will be shown on screen and will expire in 7 days. It can only be used once.',
                       style: TextStyle(
                         fontSize: 12,
@@ -520,7 +521,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
+            child: TranslatableText(
               'Cancel',
               style: TextStyle(color: Colors.grey[600]),
             ),
@@ -531,7 +532,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _requestVerificationCode(context, user);
             },
             icon: const Icon(Icons.generating_tokens, size: 18),
-            label: const Text('Generate Code'),
+            label: const TranslatableText('Generate Code'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.purple[600],
               foregroundColor: Colors.white,
@@ -593,13 +594,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: const [
             Icon(Icons.verified_user, color: Colors.green),
             SizedBox(width: 12),
-            Text('Verification Code'),
+            TranslatableText('Verification Code'),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
+            const TranslatableText(
               'Your moderator verification code:',
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
               textAlign: TextAlign.center,
@@ -610,7 +611,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Clipboard.setData(ClipboardData(text: code));
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Code copied to clipboard!'),
+                    content: TranslatableText('Code copied to clipboard!'),
                     backgroundColor: Colors.green,
                     duration: Duration(seconds: 2),
                   ),
@@ -635,7 +636,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 child: Column(
                   children: [
-                    Text(
+                    TranslatableText(
                       code,
                       style: const TextStyle(
                         fontSize: 36,
@@ -654,7 +655,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           size: 16,
                         ),
                         const SizedBox(width: 6),
-                        Text(
+                        TranslatableText(
                           'Tap to copy',
                           style: TextStyle(
                             fontSize: 13,
@@ -685,7 +686,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        TranslatableText(
                           'Important:',
                           style: TextStyle(
                             fontSize: 13,
@@ -694,7 +695,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
+                        TranslatableText(
                           '• Valid for 7 days\n• Can only be used once\n• Use it to access moderator portal',
                           style: TextStyle(
                             fontSize: 12,
@@ -719,14 +720,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Clipboard.setData(ClipboardData(text: code));
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Code copied to clipboard!'),
+                        content: TranslatableText('Code copied to clipboard!'),
                         backgroundColor: Colors.green,
                         duration: Duration(seconds: 2),
                       ),
                     );
                   },
                   icon: const Icon(Icons.content_copy, size: 18),
-                  label: const Text('Copy Code'),
+                  label: const TranslatableText('Copy Code'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.purple[600],
                     side: BorderSide(color: Colors.purple[600]!),
@@ -749,7 +750,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  child: const Text('Done'),
+                  child: const TranslatableText('Done'),
                 ),
               ),
             ],

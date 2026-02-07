@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'services/location_service.dart';
 import 'package:geolocator/geolocator.dart';
+import 'widgets/translatable_text.dart';
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
@@ -319,7 +320,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
+                                  TranslatableText(
                                     resource.type.toUpperCase(),
                                     style: TextStyle(
                                       fontSize: 12,
@@ -328,7 +329,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 4),
-                                  Text(
+                                  TranslatableText(
                                     resource.categories.join(' • '),
                                     style: const TextStyle(
                                       fontSize: 20,
@@ -349,7 +350,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                             color: _getColorForType(resource.type).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Text(
+                          child: TranslatableText(
                             resource.description,
                             style: const TextStyle(
                               fontSize: 16,
@@ -402,7 +403,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
 
                         if (resource.tags.isNotEmpty) ...[
                           const SizedBox(height: 20),
-                          const Text(
+                          const TranslatableText(
                             'Tags',
                             style: TextStyle(
                               fontSize: 16,
@@ -420,7 +421,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                   color: _getColorForType(resource.type).withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
-                                child: Text(
+                                child: TranslatableText(
                                   tag,
                                   style: const TextStyle(fontSize: 12),
                                 ),
@@ -446,7 +447,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                   Navigator.pop(context);
                                 },
                                 icon: const Icon(Icons.my_location),
-                                label: const Text('Show on Map'),
+                                label: const TranslatableText('Show on Map'),
                                 style: ElevatedButton.styleFrom(
                                   padding: const EdgeInsets.all(16),
                                   backgroundColor: _getColorForType(resource.type),
@@ -458,7 +459,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                               child: ElevatedButton.icon(
                                 onPressed: () => _openDirections(resource.lat, resource.lng),
                                 icon: const Icon(Icons.directions),
-                                label: const Text('Directions'),
+                                label: const TranslatableText('Directions'),
                                 style: ElevatedButton.styleFrom(
                                   padding: const EdgeInsets.all(16),
                                   backgroundColor: Colors.blue,
@@ -491,7 +492,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                TranslatableText(
                   label,
                   style: TextStyle(
                     fontSize: 12,
@@ -500,7 +501,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
+                TranslatableText(
                   value,
                   style: TextStyle(
                     fontSize: 15,
@@ -549,7 +550,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      const TranslatableText(
                         'Show on Map',
                         style: TextStyle(
                           fontSize: 24,
@@ -567,7 +568,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         ),
-                        child: Text(
+                        child: TranslatableText(
                           _categoryFilters.values.every((v) => v) ? 'Uncheck All' : 'Check All',
                           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                         ),
@@ -618,7 +619,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                 ),
                                 const SizedBox(width: 16),
                                 Expanded(
-                                  child: Text(
+                                  child: TranslatableText(
                                     category[0].toUpperCase() + category.substring(1),
                                     style: const TextStyle(
                                       fontSize: 18,
@@ -657,7 +658,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
+                      child: const TranslatableText(
                         'Apply Filters',
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
@@ -677,7 +678,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Community Resources'),
+        title: const TranslatableText('Community Resources'),
         elevation: 0,
         flexibleSpace: Container(
           decoration: BoxDecoration(
@@ -711,7 +712,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                       children: [
                         const Icon(Icons.error_outline, size: 64, color: Colors.red),
                         const SizedBox(height: 16),
-                        Text('Error: ${snapshot.error}'),
+                        TranslatableText('Error: ${snapshot.error}'),
                       ],
                     ),
                   );
@@ -728,12 +729,12 @@ class _CommunityScreenState extends State<CommunityScreen> {
                       children: [
                         Icon(Icons.inbox, size: 80, color: Colors.grey[400]),
                         const SizedBox(height: 16),
-                        Text(
+                        TranslatableText(
                           'No community resources available',
                           style: TextStyle(fontSize: 18, color: Colors.grey[600]),
                         ),
                         const SizedBox(height: 8),
-                        Text(
+                        TranslatableText(
                           'Check back later for new contributions',
                           style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                         ),
@@ -798,12 +799,12 @@ class _CommunityScreenState extends State<CommunityScreen> {
                               children: [
                                 Icon(Icons.search_off, size: 60, color: Colors.grey[400]),
                                 const SizedBox(height: 16),
-                                const Text(
+                                const TranslatableText(
                                   'No resources to display',
                                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 8),
-                                const Text(
+                                const TranslatableText(
                                   'Try adjusting your filters',
                                   style: TextStyle(fontSize: 14, color: Colors.grey),
                                 ),
@@ -811,7 +812,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                 ElevatedButton.icon(
                                   onPressed: _showFilterSheet,
                                   icon: const Icon(Icons.filter_list),
-                                  label: const Text('Adjust Filters'),
+                                  label: const TranslatableText('Adjust Filters'),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.purple,
                                   ),
@@ -850,7 +851,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text(
+                              const TranslatableText(
                                 'Legend',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
@@ -884,7 +885,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
+                              TranslatableText(
                                 '${filteredResources.length} resource${filteredResources.length != 1 ? 's' : ''} found',
                                 style: const TextStyle(
                                   color: Colors.white,
@@ -950,14 +951,14 @@ class _CommunityScreenState extends State<CommunityScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            const TranslatableText(
                               'Community Resources',
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            Text(
+                            TranslatableText(
                               '${resources.length} available',
                               style: TextStyle(
                                 fontSize: 14,
@@ -1019,7 +1020,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(
+                                          TranslatableText(
                                             resource.type.toUpperCase(),
                                             style: TextStyle(
                                               fontSize: 11,
@@ -1029,7 +1030,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                             ),
                                           ),
                                           const SizedBox(height: 4),
-                                          Text(
+                                          TranslatableText(
                                             resource.categories.join(' • '),
                                             style: const TextStyle(
                                               fontSize: 16,
@@ -1048,7 +1049,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                   ],
                                 ),
                                 const SizedBox(height: 12),
-                                Text(
+                                TranslatableText(
                                   resource.description,
                                   style: TextStyle(
                                     fontSize: 14,
@@ -1064,7 +1065,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                     Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
                                     const SizedBox(width: 4),
                                     Expanded(
-                                      child: Text(
+                                      child: TranslatableText(
                                         resource.location,
                                         style: TextStyle(
                                           fontSize: 13,
@@ -1081,7 +1082,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                   children: [
                                     Icon(Icons.directions_walk, size: 16, color: Colors.blue),
                                     const SizedBox(width: 4),
-                                    Text(
+                                    TranslatableText(
                                       _formatDistance(resource.distance),
                                       style: const TextStyle(
                                         fontSize: 13,
@@ -1092,7 +1093,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                     const SizedBox(width: 16),
                                     Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
                                     const SizedBox(width: 4),
-                                    Text(
+                                    TranslatableText(
                                       '${resource.startTime} - ${resource.endTime}',
                                       style: TextStyle(
                                         fontSize: 13,
@@ -1113,7 +1114,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                           color: _getColorForType(resource.type).withOpacity(0.15),
                                           borderRadius: BorderRadius.circular(12),
                                         ),
-                                        child: Text(
+                                        child: TranslatableText(
                                           tag,
                                           style: TextStyle(
                                             fontSize: 11,
@@ -1150,7 +1151,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
         children: [
           Icon(Icons.location_on, color: color, size: 14),
           const SizedBox(width: 6),
-          Text(
+          TranslatableText(
             label,
             style: const TextStyle(fontSize: 11),
           ),
