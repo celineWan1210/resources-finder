@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'services/firestore_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'services/location_service.dart';
+import 'services/location_cache_service.dart'; // ✨ IMPORT YOUR CACHE SERVICE
 import 'widgets/translatable_text.dart';
 
 class MapScreen extends StatefulWidget {
@@ -77,25 +78,9 @@ class _MapScreenState extends State<MapScreen> {
   bool _showContributionsOnly = false;
   final FirestoreService _firestoreService = FirestoreService();
 
-  //Different keywords based on type
-  late final List<String> _keywords;
-
   @override
   void initState() {
     super.initState();
-  _keywords = widget.locationType == 'foodbank'
-    ? ['food bank', 'food charity', 'lost food project', 'food aid', 'charity food',
-      'food pantry', 'meal program', 
-      'food assistance', 'hunger relief', 'food rescue', 'community kitchen',
-      'bank makanan', 'bantuan makanan', 'makanan amal', 'projek makanan',
-      'dapur makanan', 'agihan makanan', 'bantuan kelaparan', 'makanan percuma',
-      'pusat makanan', 'derma makanan', 'rumah makan amal']
-     : ['homeless shelter', 'shelter', 'emergency housing', 'transit home', 
-        'rumah perlindungan', 'refuge center', 'transitional housing', 
-        'living center', 'living centre', 'gelandangan', 
-        'anjung singgah', 'house of hope',
-        'social services organization'];
-
     _loadFavorites();
     _initializeMap();
   }
@@ -130,16 +115,20 @@ class _MapScreenState extends State<MapScreen> {
       setState(() {
         _statusMessage = 'Getting your location...';
       });
+      
       // Get current location
       await _getCurrentLocation();
       
       setState(() {
-        _statusMessage = 'Loading ${_typeLabel}s and contributions...';
+        _statusMessage = 'Loading ${_typeLabel}s from auto-cache...';
       });
 
-      await _searchFoodBanks(_currentLocation.latitude, _currentLocation.longitude);
+      // ✨ OPTIMIZED: Load official locations using AUTO-CACHING service
+      await _loadOfficialLocationsFromCache(_currentLocation.latitude, _currentLocation.longitude);
 
+      // Load user contributions (real-time)
       await _loadCommunityContributions();
+      
       _updateMarkersAndList();
       
       // If target location provided, focus on it after a short delay
@@ -197,13 +186,62 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  /// ✨ UPDATED: Load official locations using AUTO-CACHING LocationCacheService
+  Future<void> _loadOfficialLocationsFromCache(double lat, double lng) async {
+    try {
+      print('📦 Loading official ${widget.locationType}s from auto-cache service...');
+      
+      // ✨ USE YOUR AUTO-CACHING SERVICE (will auto-populate on first use!)
+      final cachedData = await LocationCacheService.getCachedLocations(
+        type: widget.locationType,
+        userLat: lat,
+        userLng: lng,
+        radiusKm: 10.0,
+      );
+      
+      // Convert to FoodBankPlace objects
+      for (var data in cachedData) {
+        _foodBanks.add(FoodBankPlace(
+          placeId: data['placeId'] ?? data['id'],
+          name: data['name'],
+          address: data['address'],
+          lat: data['lat'],
+          lng: data['lng'],
+          distance: data['distance'],
+          phoneNumber: data['phoneNumber'],
+          rating: data['rating']?.toDouble(),
+          userRatingsTotal: data['userRatingsTotal'],
+          isOpen: data['isOpen'] ?? true,
+          isContribution: false,
+        ));
+      }
+      
+      print('✅ Loaded ${_foodBanks.length} official ${widget.locationType}(s) from auto-cache');
+    } catch (e) {
+      print('❌ Error loading from auto-cache service: $e');
+      // Fallback to empty list - contributions will still load
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: TranslatableText('Could not load cached locations: $e'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
+  }
 
+  /// Load user contributions (real-time, NOT cached)
   Future _loadCommunityContributions() async {
     try {
+      print('📍 Loading real-time community contributions...');
+      
       final snapshot = await FirebaseFirestore.instance
           .collection('contributions')
           .where('status', isEqualTo: 'active')
           .get();
+      
+      int contributionCount = 0;
       
       for (var doc in snapshot.docs) {
         final contribution = doc.data();
@@ -218,9 +256,8 @@ class _MapScreenState extends State<MapScreen> {
         } else if (widget.locationType == 'shelter' && type == 'shelter') {
           shouldShow = true;
         }
-        // Don't show 'community' type contributions yet
 
-        // Calculate distance FIRST
+        // Calculate distance
         double distance = _calculateDistance(
           _currentLocation.latitude,
           _currentLocation.longitude,
@@ -228,9 +265,9 @@ class _MapScreenState extends State<MapScreen> {
           contribution['lng'] as double,
         );
 
-        // ⭐ NEW: Only add if within 10km radius, matches type, not expired, and approved
+        // Only add if within 10km radius, matches type, not expired, and approved
         if (shouldShow && 
-            distance <= 10.0 &&  // ← ADD THIS LINE (10km = 10.0)
+            distance <= 10.0 &&
             endDate.isAfter(DateTime.now()) &&
             moderationStatus == 'approved') {
           
@@ -246,9 +283,13 @@ class _MapScreenState extends State<MapScreen> {
             contributionData: contribution,
           );
           _foodBanks.add(contributionPlace);
+          contributionCount++;
         }
       }
+      
+      print('✅ Loaded $contributionCount community contributions');
     } catch (e) {
+      print('❌ Error loading contributions: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -259,16 +300,17 @@ class _MapScreenState extends State<MapScreen> {
       }
     }
   }
-  double _calculateDistance(double lat1, double lng1, double lat2, double lng2) {
-      return Geolocator.distanceBetween(lat1, lng1, lat2, lng2) / 1000;
-    }
 
-    String _formatDistance(double distanceKm) {
-      if (distanceKm < 1) {
-        return '${(distanceKm * 1000).round()} m away';
-      } else {
-        return '${distanceKm.toStringAsFixed(1)} km away';
-      }
+  double _calculateDistance(double lat1, double lng1, double lat2, double lng2) {
+    return Geolocator.distanceBetween(lat1, lng1, lat2, lng2) / 1000;
+  }
+
+  String _formatDistance(double distanceKm) {
+    if (distanceKm < 1) {
+      return '${(distanceKm * 1000).round()} m away';
+    } else {
+      return '${distanceKm.toStringAsFixed(1)} km away';
+    }
   }
 
   Future<void> _fetchPlaceDetails(FoodBankPlace place) async {
@@ -313,85 +355,6 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  bool _shouldExcludePlace(String name) {
-    final lower = name.toLowerCase();
-    if (widget.locationType == 'shelter') {
-        return lower.contains('shelter security') || lower.contains('111 bomb shelter');
-    }
-    return false;
-  }
-  
-  Future<void> _searchFoodBanks(double lat, double lng) async {
-    List<Map<String, dynamic>> allPlaces = [];
-
-    for (String keyword in _keywords) {
-      final url =
-          'https://maps.googleapis.com/maps/api/place/nearbysearch/json'
-          '?location=$lat,$lng'
-          '&radius=10000'
-          '&type=establishment'
-          '&keyword=${keyword.replaceAll(' ', '+')}'
-          '&key=$googleApiKey';
-
-      try {
-        final response = await http.get(Uri.parse(url));
-
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-
-          if (data['status'] == 'REQUEST_DENIED') {
-            setState(() {
-              _statusMessage = 'API Error: ${data['error_message']}';
-              _isLoading = false;
-            });
-            return;
-          }
-
-          final results = data['results'] ?? [];
-
-          for (var place in results) {
-            final String name = (place['name'] ?? '').toString().toLowerCase();
-            
-            // Skip excluded places (like "Shelter Security")
-            if(_shouldExcludePlace(name)) continue;
-              bool containsKeyword = _keywords.any((k) => name.contains(k.toLowerCase()));
-              if (!containsKeyword) {
-                print('⚠️ Skipping: $name (keyword not found)');
-                continue;
-              }
-
-            // Check if already added (avoid duplicates from different keyword searches)
-            bool alreadyExists = allPlaces.any((p) => p['place_id'] == place['place_id']);
-            if (!alreadyExists) {
-              allPlaces.add(place);
-            }
-          }
-        }
-      } catch (e) {
-        print('Error searching with keyword $keyword: $e');
-      }
-    }
-
-    for (var place in allPlaces) {
-      double placeLat = place['geometry']['location']['lat'];
-      double placeLng = place['geometry']['location']['lng'];
-      double distance = _calculateDistance(lat, lng, placeLat, placeLng);
-
-      final foodBank = FoodBankPlace(
-        placeId: place['place_id'],
-        name: place['name'],
-        address: place['vicinity'] ?? '',
-        lat: placeLat,
-        lng: placeLng,
-        distance: distance,
-        isOpen: place['opening_hours']?['open_now'] ?? true,
-        isContribution: false,
-      );
-
-      _foodBanks.add(foodBank);
-    }
-  }
-
   void _updateMarkersAndList() {
     _markers.clear();
     
@@ -413,8 +376,8 @@ class _MapScreenState extends State<MapScreen> {
               : _favoriteIds.contains(place.placeId) 
                   ? BitmapDescriptor.hueRed 
                   : widget.locationType == 'foodbank'
-                    ? BitmapDescriptor.hueOrange //Orange pin for food banks
-                    : BitmapDescriptor.hueRose, //Pink pin for shelter
+                    ? BitmapDescriptor.hueOrange
+                    : BitmapDescriptor.hueRose,
         ),
         onTap: () => _showPlaceDetailsDialog(place),
       );
@@ -672,7 +635,6 @@ class _MapScreenState extends State<MapScreen> {
     final startDate = DateTime.parse(contribution['startDate']);
     final endDate = DateTime.parse(contribution['endDate']);
     
-    // Get moderation status
     final moderationStatus = contribution['moderationStatus'] ?? 'pending';
     final riskScore = contribution['riskScore'] ?? 'unknown';
     final verified = contribution['verified'] ?? false;
@@ -785,7 +747,6 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // AI Verification Banner
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -1066,7 +1027,6 @@ class _MapScreenState extends State<MapScreen> {
         final place = displayList[index];
         final isFavorite = _favoriteIds.contains(place.placeId);
         
-        // For contributions, check verification status
         final isVerified = place.isContribution 
             ? (place.contributionData?['verified'] ?? false)
             : false;
@@ -1261,14 +1221,24 @@ class _MapScreenState extends State<MapScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () {
+            onPressed: () async {
               setState(() {
                 _markers.clear();
                 _foodBanks.clear();
                 _isLoading = true;
-                _statusMessage = 'Refreshing...';
+                _statusMessage = 'Updating from Google Places API...';
                 _showContributionsOnly = false;
               });
+              
+              // ✨ FORCE UPDATE: Bypass cache and fetch fresh data from Google Places API
+              await LocationCacheService.updateLocationCache(
+                type: widget.locationType,
+                lat: _currentLocation.latitude,
+                lng: _currentLocation.longitude,
+                radiusKm: 50.0,
+              );
+              
+              // Reload map with fresh data
               _initializeMap();
             },
           ),
@@ -1361,7 +1331,6 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                 ),
               ),
-            // Legend
             Positioned(
               bottom: 20,
               left: 10,
@@ -1382,8 +1351,8 @@ class _MapScreenState extends State<MapScreen> {
                           Icon(
                             Icons.location_on, 
                             color: widget.locationType == 'foodbank' 
-                              ? Colors.orange //Orange for food banks
-                              : const Color.fromARGB(175, 233, 30, 98), //Pink for shelter
+                              ? Colors.orange
+                              : const Color.fromARGB(175, 233, 30, 98),
                             size: 20
                           ),
                           SizedBox(width: 8),
