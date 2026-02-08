@@ -9,6 +9,14 @@ import 'login_screen.dart';
 import 'home_screen.dart';
 import 'screens/moderator_login_screen.dart';
 import 'screens/full_moderator_dashboard.dart' as dashboard;
+import 'package:resource_finder/services/voice_navigation_service.dart';
+import 'package:resource_finder/widgets/voice_navigation_button.dart';
+import 'map_screen.dart' as map;
+import 'contribution_screen.dart' as contrib;
+import 'community_screen.dart' as community;
+import 'request_help_screen.dart';
+import 'profile_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,7 +48,24 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const HomeScreen(),
         '/login': (context) => const LoginScreen(),
         '/moderator-login': (context) => const ModeratorLoginScreen(),
-        '/moderator-dashboard': (context) => const dashboard.ModeratorDashboard()
+        '/moderator-dashboard': (context) => const dashboard.ModeratorDashboard(),
+        // VOICE NAVIGATION ROUTES
+        '/community': (context) => const community.CommunityScreen(),
+        '/contribute': (context) => const contrib.ContributionScreen(),
+        '/request-help': (context) => const RequestHelpScreen(),
+        '/profile': (context) => const ProfileScreen(),
+      },
+      // HANDLE MAP ROUTE WITH ARGUMENTS
+      onGenerateRoute: (settings) {
+        if (settings.name == '/map') {
+          final args = settings.arguments as Map<String, dynamic>?;
+          return MaterialPageRoute(
+            builder: (context) => map.MapScreen(
+              locationType: args?['locationType'] ?? 'foodbank',
+            ),
+          );
+        }
+        return null;
       },
       debugShowCheckedModeBanner: false,
     );
@@ -123,11 +148,144 @@ class AuthWrapper extends StatelessWidget {
           // Web: Show moderator-only login screen
           return const ModeratorOnlyScreen();
         } else {
-          // Mobile/Desktop: Go straight to user login
-          return const LoginScreen();
+          // Mobile/Desktop: Go straight to user login with voice tutorial
+          return const LoginWithVoiceIntro();
         }
       },
     );
+  }
+}
+
+// Wrapper for LoginScreen that shows voice feature tutorial on first launch
+class LoginWithVoiceIntro extends StatefulWidget {
+  const LoginWithVoiceIntro({super.key});
+
+  @override
+  State<LoginWithVoiceIntro> createState() => _LoginWithVoiceIntroState();
+}
+
+class _LoginWithVoiceIntroState extends State<LoginWithVoiceIntro> {
+  @override
+  void initState() {
+    super.initState();
+    _checkAndShowVoiceTutorial();
+  }
+
+  Future<void> _checkAndShowVoiceTutorial() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeenTutorial = prefs.getBool('has_seen_voice_tutorial') ?? false;
+    
+    if (!hasSeenTutorial && mounted) {
+      // Wait a bit for the screen to render
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        _showVoiceTutorial();
+      }
+    }
+  }
+
+  void _showVoiceTutorial() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.mic, color: Colors.blue, size: 32),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Voice Navigation',
+                style: TextStyle(fontSize: 22),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Navigate hands-free with voice commands!',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildCommandExample('🗺️', 'Find food banks near me'),
+              _buildCommandExample('📍', 'Show shelters in my area'),
+              _buildCommandExample('🤝', 'Go to community'),
+              _buildCommandExample('✋', 'I need help'),
+              _buildCommandExample('👤', 'Open my profile'),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.lightbulb_outline, color: Colors.blue),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Look for the microphone button at the bottom of the screen!',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('has_seen_voice_tutorial', true);
+              if (mounted) {
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Got it!'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommandExample(String emoji, String command) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 20)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '"$command"',
+              style: const TextStyle(
+                fontSize: 14,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const LoginScreen();
   }
 }
 
@@ -305,6 +463,8 @@ class RoleSelectionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      floatingActionButton: const VoiceNavigationButton(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -410,6 +570,33 @@ class RoleSelectionScreen extends StatelessWidget {
                       color: Colors.white.withOpacity(0.8),
                     ),
                     textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Voice command hint
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 80),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(color: Colors.white.withOpacity(0.3)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.mic, color: Colors.white, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Use your voice to navigate',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

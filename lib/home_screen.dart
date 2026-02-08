@@ -7,6 +7,7 @@ import 'community_screen.dart' as community;
 import 'request_help_screen.dart';
 import 'widgets/translatable_text.dart';
 import 'widgets/language_toggle.dart';
+import 'widgets/voice_navigation_button.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -116,6 +117,8 @@ class HomeScreen extends StatelessWidget {
             ),
         ],
       ),
+      floatingActionButton: const VoiceNavigationButton(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -304,6 +307,9 @@ class HomeScreen extends StatelessWidget {
                   const SizedBox(height: 24),
 
                   _buildHowItWorks(),
+                  
+                  // Extra spacing at bottom for voice button
+                  const SizedBox(height: 100),
                 ],
               ),
             ),
