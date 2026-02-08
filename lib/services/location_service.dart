@@ -48,6 +48,7 @@ class LocationService {
       // Get current position
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 5),
       );
 
       // Get address from coordinates using reverse geocoding

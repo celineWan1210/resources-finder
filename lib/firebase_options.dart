@@ -64,6 +64,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '517336120648',
     projectId: 'kita-hack-resource-finder',
     storageBucket: 'kita-hack-resource-finder.firebasestorage.app',
+    androidClientId: '517336120648-7mgenjuk43qd448b9cu1gh28u7gukkpr.apps.googleusercontent.com',
+    iosClientId: '517336120648-9if8lqilenvn8g1rpufj6m0n7nq2u0tb.apps.googleusercontent.com',
     iosBundleId: 'com.example.resourceFinder',
   );
 
@@ -73,6 +75,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '517336120648',
     projectId: 'kita-hack-resource-finder',
     storageBucket: 'kita-hack-resource-finder.firebasestorage.app',
+    androidClientId: '517336120648-7mgenjuk43qd448b9cu1gh28u7gukkpr.apps.googleusercontent.com',
+    iosClientId: '517336120648-9if8lqilenvn8g1rpufj6m0n7nq2u0tb.apps.googleusercontent.com',
     iosBundleId: 'com.example.resourceFinder',
   );
 
@@ -85,4 +89,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'kita-hack-resource-finder.firebasestorage.app',
     measurementId: 'G-8RCQGZWFNT',
   );
+
 }

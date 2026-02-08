@@ -5,8 +5,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'services/firestore_service.dart';
 import 'services/location_service.dart';
+import 'services/moderation_service_no_functions.dart';
+import 'widgets/translatable_text.dart';
+
 
 
 class ContributionScreen extends StatefulWidget {
@@ -38,7 +43,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   
   // Step 1: Category selection
-  Set<String> _selectedCategories = {};
+  final Set<String> _selectedCategories = {};
   final List<ContributionCategory> _categories = [
     ContributionCategory(
       id: 'food',
@@ -118,11 +123,11 @@ class _ContributionScreenState extends State<ContributionScreen> {
     'supplies': ['Blankets', 'School Supplies', 'Bedding', 'Kitchen Items'],
     'volunteer': ['Cooking', 'Packing', 'Cleaning', 'Mentoring', 'Teaching'],
   };
-  Set<String> _selectedTags = {};
+  final Set<String> _selectedTags = {};
 
   // Store contributions
   List<Map<String, dynamic>> _myContributions = [];
-  String? _selectedContributionFilter = null;
+  String? _selectedContributionFilter;
 
   Future<void> _loadCurrentLocation() async {
     final result = await LocationService.getCurrentLocation();
@@ -137,6 +142,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
     super.initState();
     _loadCurrentLocation();
     _loadContributions();
+    _syncModerationStatus();
   }
 
   Future<void> _loadContributions() async {
@@ -189,7 +195,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
     if (_selectedCategories.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select at least one contribution type'),
+          content: TranslatableText('Please select at least one contribution type'),
           backgroundColor: Colors.red,
         ),
       );
@@ -252,8 +258,33 @@ class _ContributionScreenState extends State<ContributionScreen> {
     }
   }
   
-
+  // INTEGRATED MODERATION-ENABLED SUBMIT METHOD
   void _submitContribution() async {
+    // Check if user is logged in
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: TranslatableText('Please log in to submit contributions'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Check if user is blacklisted
+    final isBlacklisted = await ModerationService.isUserBlacklisted(currentUser.uid);
+    if (isBlacklisted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: TranslatableText('Your account has been restricted from posting due to policy violations.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
+        ),
+      );
+      return;
+    }
+
     // Refresh location if using current location
     if (_useCurrentLocation) {
       await _loadCurrentLocation();
@@ -267,38 +298,34 @@ class _ContributionScreenState extends State<ContributionScreen> {
         _quantityController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please fill in all required fields'),
+          content: TranslatableText('Please fill in all required fields'),
           backgroundColor: Colors.red,
         ),
       );
       return;
     }
 
-    // Combine selected categories into a single type for map filtering
-    // Combine selected categories into a single type for filtering (Food / Shelter / Community)
+    // Combine selected categories into a single type for filtering
     String contributionType;
-
     if (_selectedCategories.length == 1) {
       if (_selectedCategories.contains('food')) {
-        contributionType = 'food';        // Food only
+        contributionType = 'food';
       } else if (_selectedCategories.contains('shelter')) {
-        contributionType = 'shelter';     // Shelter only
+        contributionType = 'shelter';
       } else {
-        contributionType = 'community';  // Any other single category
+        contributionType = 'community';
       }
     } else {
-      // Multiple categories selected
-      if (_selectedCategories.contains('food') &&
-          _selectedCategories.contains('shelter') &&
-          _selectedCategories.length == 2) {
-        contributionType = 'community';  // Food + Shelter
-      } else {
-        contributionType = 'community';  // Any other mix
-      }
+      contributionType = 'community';
     }
+
+    // FIXED: Properly trim and store contact information
+    final contactInfo = _contactController.text.trim();
 
     final contribution = {
       'id': DateTime.now().millisecondsSinceEpoch.toString(),
+      'userId': currentUser.uid,
+      'userEmail': currentUser.email ?? 'not_provided',
       'type': contributionType,
       'categories': _selectedCategories.toList(),
       'location': location,
@@ -306,7 +333,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
       'lng': _currentLocation.longitude,
       'description': _descriptionController.text,
       'quantity': _quantityController.text,
-      'contact': _contactController.text,
+      'contact': contactInfo, // FIXED: Now properly stored
       'tags': _selectedTags.toList(),
       'startDate': _startDate.toIso8601String(),
       'endDate': _endDate.toIso8601String(),
@@ -316,30 +343,59 @@ class _ContributionScreenState extends State<ContributionScreen> {
       'createdAt': DateTime.now().toIso8601String(),
       'status': 'active',
       'verified': false,
+      'moderationStatus': 'pending',
     };
 
-    
+    // Show loading
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            SizedBox(width: 16),
+            TranslatableText('Submitting and checking with AI...'),
+          ],
+        ),
+        duration: Duration(seconds: 10),
+        backgroundColor: Colors.blue,
+      ),
+    );
 
     try {
-      // Save to Firestore FIRST and get the document ID
-      final firestoreId = await _firestoreService.addContribution(contribution);
-
-      // ADD THE FIRESTORE ID to the contribution object
+      // Step 1: Save to Firestore
+      final docRef = await FirebaseFirestore.instance
+          .collection('contributions')
+          .add(contribution);
+      
+      final firestoreId = docRef.id;
       contribution['firestoreId'] = firestoreId;
       
-      // Then save locally with the Firestore ID included
+      // Step 2: Run AI Moderation (this happens in background)
+      // Don't await - let it run asynchronously so user doesn't wait
+      ModerationService.moderateContribution(firestoreId, contribution).catchError((e) {
+        print('Background moderation error: $e');
+      });
+      
+      // Step 3: Save locally
       setState(() {
         _myContributions.insert(0, contribution);
       });
+      await _saveContributions();
 
-      _saveContributions();  
-
+      // Hide loading, show success
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('✓ Contribution submitted successfully!'),
+        const SnackBar(
+          content: TranslatableText('✓ Contribution submitted! AI is reviewing it now.'),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
 
@@ -348,10 +404,44 @@ class _ContributionScreenState extends State<ContributionScreen> {
         _currentView = 1;
       });
     } catch (e) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error saving contribution: $e'),
+          content: TranslatableText('Error saving contribution: $e'),
           backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // USER MODERATION STATUS METHOD
+  Future<void> _showUserModerationStatus() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    final warningCount = await ModerationService.getUserWarningCount(currentUser.uid);
+    final isBlacklisted = await ModerationService.isUserBlacklisted(currentUser.uid);
+
+    String message;
+    Color color;
+
+    if (isBlacklisted) {
+      message = '⛔ Your account is restricted from posting.';
+      color = Colors.red;
+    } else if (warningCount > 0) {
+      message = '⚠️ Warning count: $warningCount/3. Please follow community guidelines.';
+      color = Colors.orange;
+    } else {
+      message = '✅ Account in good standing';
+      color = Colors.green;
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: TranslatableText(message),
+          backgroundColor: color,
+          duration: const Duration(seconds: 4),
         ),
       );
     }
@@ -379,16 +469,16 @@ class _ContributionScreenState extends State<ContributionScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Contribution'),
-        content: const Text('Are you sure you want to delete this contribution?'),
+        title: const TranslatableText('Delete Contribution'),
+        content: const TranslatableText('Are you sure you want to delete this contribution?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const TranslatableText('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const TranslatableText('Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -410,12 +500,12 @@ class _ContributionScreenState extends State<ContributionScreen> {
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Contribution deleted')),
+            const SnackBar(content: TranslatableText('Contribution deleted')),
           );
         }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error deleting: $e'), backgroundColor: Colors.red),
+          SnackBar(content: TranslatableText('Error deleting: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -444,12 +534,12 @@ class _ContributionScreenState extends State<ContributionScreen> {
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Marked as completed')),
+          const SnackBar(content: TranslatableText('Marked as completed')),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(content: TranslatableText('Error: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -458,8 +548,16 @@ class _ContributionScreenState extends State<ContributionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Community Contribution'),
+        title: const TranslatableText('Community Contribution'),
         elevation: 0,
+        actions: [
+          // Add button to check moderation status
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            onPressed: _showUserModerationStatus,
+            tooltip: 'Check account status',
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -505,14 +603,14 @@ class _ContributionScreenState extends State<ContributionScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          TranslatableText(
             'Step 1 of 2: What can you contribute?',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: Colors.grey[600],
             ),
           ),
           const SizedBox(height: 8),
-          Text(
+          TranslatableText(
             'Select one or more categories',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.bold,
@@ -548,7 +646,7 @@ class _ContributionScreenState extends State<ContributionScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
+              child: const TranslatableText(
                 'Continue to Details',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
@@ -576,7 +674,7 @@ Widget _buildCategoryCard(ContributionCategory category) {
     child: Container(
       padding: const EdgeInsets.all(16),
       constraints: const BoxConstraints(
-        minHeight: 160, // make the card taller
+        minHeight: 160,
       ),
       decoration: BoxDecoration(
         color: isSelected ? category.color.withOpacity(0.2) : Colors.grey[100],
@@ -595,7 +693,7 @@ Widget _buildCategoryCard(ContributionCategory category) {
             color: category.color,
           ),
           const SizedBox(height: 12),
-          Text(
+          TranslatableText(
             category.label,
             textAlign: TextAlign.center,
             style: const TextStyle(
@@ -605,14 +703,14 @@ Widget _buildCategoryCard(ContributionCategory category) {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
+          TranslatableText(
             category.description,
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 11,
               color: Colors.grey[600],
             ),
-            maxLines: 3, // allow more lines
+            maxLines: 3,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 12),
@@ -631,9 +729,6 @@ Widget _buildCategoryCard(ContributionCategory category) {
   );
 }
 
-
-
-  // Generic TextField builder
 Widget _buildTextField({
   required TextEditingController controller,
   required String hint,
@@ -657,7 +752,6 @@ Widget _buildTextField({
   );
 }
 
-// Location section with toggle between current & manual location
 Widget _buildLocationSection() {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -669,14 +763,14 @@ Widget _buildLocationSection() {
             groupValue: _useCurrentLocation,
             onChanged: (val) => setState(() => _useCurrentLocation = true),
           ),
-          const Text('Use Current Location'),
+          const TranslatableText('Use Current Location'),
           const SizedBox(width: 16),
           Radio<bool>(
             value: false,
             groupValue: _useCurrentLocation,
             onChanged: (val) => setState(() => _useCurrentLocation = false),
           ),
-          const Text('Enter Manually'),
+          const TranslatableText('Enter Manually'),
         ],
       ),
       if (!_useCurrentLocation)
@@ -689,7 +783,6 @@ Widget _buildLocationSection() {
   );
 }
 
-// Availability section with date and time pickers
 Widget _buildAvailabilitySection() {
   return Column(
     children: [
@@ -698,14 +791,14 @@ Widget _buildAvailabilitySection() {
           Expanded(
             child: ElevatedButton(
               onPressed: () => _selectDate(context, true),
-              child: Text('Start Date: ${DateFormat('MMM dd, yyyy').format(_startDate)}'),
+              child: TranslatableText('Start Date: ${DateFormat('MMM dd, yyyy').format(_startDate)}'),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: ElevatedButton(
               onPressed: () => _selectDate(context, false),
-              child: Text('End Date: ${DateFormat('MMM dd, yyyy').format(_endDate)}'),
+              child: TranslatableText('End Date: ${DateFormat('MMM dd, yyyy').format(_endDate)}'),
             ),
           ),
         ],
@@ -716,14 +809,14 @@ Widget _buildAvailabilitySection() {
           Expanded(
             child: ElevatedButton(
               onPressed: () => _selectTime(context, true),
-              child: Text('Start Time: ${_startTime.format(context)}'),
+              child: TranslatableText('Start Time: ${_startTime.format(context)}'),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: ElevatedButton(
               onPressed: () => _selectTime(context, false),
-              child: Text('End Time: ${_endTime.format(context)}'),
+              child: TranslatableText('End Time: ${_endTime.format(context)}'),
             ),
           ),
         ],
@@ -732,20 +825,19 @@ Widget _buildAvailabilitySection() {
   );
 }
 
-// Tags / category selection
 Widget _buildTagsSection() {
   List<String> allTags = [];
   for (var catId in _selectedCategories) {
     allTags.addAll(_tagsByCategory[catId] ?? []);
   }
-  allTags = allTags.toSet().toList(); // remove duplicates
+  allTags = allTags.toSet().toList();
 
   return Wrap(
     spacing: 8,
     children: allTags.map((tag) {
       final isSelected = _selectedTags.contains(tag);
       return FilterChip(
-        label: Text(tag),
+        label: TranslatableText(tag),
         selected: isSelected,
         onSelected: (selected) {
           setState(() {
@@ -761,7 +853,6 @@ Widget _buildTagsSection() {
   );
 }
 
-// Image picker / upload
 Widget _buildImageUpload() {
   return GestureDetector(
     onTap: _pickImage,
@@ -783,6 +874,50 @@ Widget _buildImageUpload() {
   );
 }
 
+Future<void> _syncModerationStatus() async {
+  try {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    // Get all user's contributions from Firestore
+    final snapshot = await FirebaseFirestore.instance
+        .collection('contributions')
+        .where('userId', isEqualTo: currentUser.uid)
+        .get();
+
+    // Update local contributions with Firestore data
+    for (var doc in snapshot.docs) {
+      final firestoreData = doc.data();
+      final firestoreId = doc.id;
+      
+      // Find matching local contribution
+      final localIndex = _myContributions.indexWhere(
+        (c) => c['firestoreId'] == firestoreId || c['id'] == firestoreData['id']
+      );
+      
+      if (localIndex != -1) {
+        // Update moderation fields
+        setState(() {
+          _myContributions[localIndex]['moderationStatus'] = 
+            firestoreData['moderationStatus'] ?? 'pending';
+          _myContributions[localIndex]['riskScore'] = 
+            firestoreData['riskScore'] ?? 'unknown';
+          _myContributions[localIndex]['moderationReason'] = 
+            firestoreData['moderationReason'];
+          _myContributions[localIndex]['verified'] = 
+            firestoreData['verified'] ?? false;
+        });
+      }
+    }
+    
+    // Save updated data
+    await _saveContributions();
+    
+    print('✅ Synced moderation status for ${snapshot.docs.length} contributions');
+  } catch (e) {
+    print('Error syncing moderation status: $e');
+  }
+}
 
   Widget _buildContributionDetails() {
     return SingleChildScrollView(
@@ -790,7 +925,7 @@ Widget _buildImageUpload() {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          TranslatableText(
             'Step 2 of 2: Fill in the details',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: Colors.grey[600],
@@ -803,7 +938,7 @@ Widget _buildImageUpload() {
             children: _selectedCategories.map((catId) {
               final category = _categories.firstWhere((c) => c.id == catId);
               return Chip(
-                label: Text(category.label),
+                label: TranslatableText(category.label),
                 backgroundColor: category.color.withOpacity(0.3),
                 deleteIcon: const Icon(Icons.edit),
                 onDeleted: _goBackToSelection,
@@ -812,7 +947,7 @@ Widget _buildImageUpload() {
           ),
           
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Details *',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -833,7 +968,7 @@ Widget _buildImageUpload() {
           ),
           
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Location',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -841,7 +976,7 @@ Widget _buildImageUpload() {
           _buildLocationSection(),
           
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Availability',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -849,7 +984,7 @@ Widget _buildImageUpload() {
           _buildAvailabilitySection(),
           
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Categories (Optional)',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -857,7 +992,7 @@ Widget _buildImageUpload() {
           _buildTagsSection(),
           
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Contact Information (Optional)',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -870,7 +1005,7 @@ Widget _buildImageUpload() {
           ),
           
           const SizedBox(height: 24),
-          const Text(
+          const TranslatableText(
             'Photo (Optional)',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -889,7 +1024,7 @@ Widget _buildImageUpload() {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('Back'),
+                  child: const TranslatableText('Back'),
                 ),
               ),
               const SizedBox(width: 16),
@@ -904,7 +1039,7 @@ Widget _buildImageUpload() {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
+                  child: const TranslatableText(
                     'Submit',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
@@ -926,7 +1061,7 @@ Widget _buildImageUpload() {
           children: [
             Icon(Icons.inbox, size: 80, color: Colors.grey[400]),
             const SizedBox(height: 16),
-            Text(
+            TranslatableText(
               'No contributions yet',
               style: TextStyle(fontSize: 18, color: Colors.grey[600]),
             ),
@@ -984,7 +1119,7 @@ Widget _buildImageUpload() {
         : _myContributions.where((c) => c['type'] == type).toList();
     
     return FilterChip(
-      label: Text('$label (${filteredList.length})'),
+      label: TranslatableText('$label (${filteredList.length})'),
       selected: isSelected,
       onSelected: (selected) {
         setState(() {
@@ -996,151 +1131,263 @@ Widget _buildImageUpload() {
     );
   }
 
-  Widget _buildContributionCard(Map<String, dynamic> contribution) {
-    final isActive = contribution['status'] == 'active';
-    final startDate = DateTime.parse(contribution['startDate']);
-    final endDate = DateTime.parse(contribution['endDate']);
-    final createdAt = DateTime.parse(contribution['createdAt']);
-    final categories = List<String>.from(contribution['categories'] ?? []);
-    
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+// FIXED: Better contact display logic
+Widget _buildContributionCard(Map<String, dynamic> contribution) {
+  final isActive = contribution['status'] == 'active';
+  final startDate = DateTime.parse(contribution['startDate']);
+  final endDate = DateTime.parse(contribution['endDate']);
+  final createdAt = DateTime.parse(contribution['createdAt']);
+  final categories = List<String>.from(contribution['categories'] ?? []);
+  
+  // FIXED: Safer contact extraction with trim
+  final contactRaw = contribution['contact'];
+  final contact = (contactRaw is String) ? contactRaw.trim() : '';
+  final hasContact = contact.isNotEmpty;
+  
+  // Get moderation status
+  final moderationStatus = contribution['moderationStatus'] ?? 'pending';
+  final riskScore = contribution['riskScore'] ?? 'unknown';
+  final moderationReason = contribution['moderationReason'];
+  
+  // Determine status colors
+  Color statusColor;
+  String statusText;
+  IconData statusIcon;
+  
+  switch (moderationStatus) {
+    case 'approved':
+      statusColor = Colors.green;
+      statusText = 'APPROVED';
+      statusIcon = Icons.check_circle;
+      break;
+    case 'flagged':
+      statusColor = Colors.orange;
+      statusText = 'UNDER REVIEW';
+      statusIcon = Icons.flag;
+      break;
+    case 'rejected':
+      statusColor = Colors.red;
+      statusText = 'REJECTED';
+      statusIcon = Icons.cancel;
+      break;
+    case 'error':
+      statusColor = Colors.grey;
+      statusText = 'ERROR';
+      statusIcon = Icons.error;
+      break;
+    default:
+      statusColor = Colors.blue;
+      statusText = 'CHECKING...';
+      statusIcon = Icons.hourglass_empty;
+  }
+  
+  return Card(
+    margin: const EdgeInsets.only(bottom: 16),
+    elevation: 2,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isActive ? Colors.green[50] : Colors.grey[200],
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(12),
+              topRight: Radius.circular(12),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.card_giftcard,
+                color: isActive ? Colors.green : Colors.grey,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TranslatableText(
+                      categories.join(', '),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isActive ? Colors.green[900] : Colors.grey[700],
+                      ),
+                    ),
+                    TranslatableText(
+                      'Posted ${DateFormat('MMM dd, yyyy').format(createdAt)}',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isActive ? Colors.green : Colors.grey,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: TranslatableText(
+                  isActive ? 'ACTIVE' : 'COMPLETED',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        // Moderation Status Banner
+        if (moderationStatus != 'approved')
           Container(
-            padding: const EdgeInsets.all(16),
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isActive ? Colors.green[50] : Colors.grey[200],
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
+              color: statusColor.withOpacity(0.1),
+              border: Border(
+                bottom: BorderSide(color: statusColor.withOpacity(0.3)),
               ),
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.card_giftcard,
-                  color: isActive ? Colors.green : Colors.grey,
-                ),
-                const SizedBox(width: 12),
+                Icon(statusIcon, color: statusColor, size: 20),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        categories.join(', '),
+                      TranslatableText(
+                        statusText,
                         style: TextStyle(
-                          fontSize: 18,
+                          color: statusColor,
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          color: isActive ? Colors.green[900] : Colors.grey[700],
                         ),
                       ),
-                      Text(
-                        'Posted ${DateFormat('MMM dd, yyyy').format(createdAt)}',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
+                      if (moderationStatus == 'flagged' && moderationReason != null)
+                        TranslatableText(
+                          moderationReason,
+                          style: TextStyle(
+                            color: statusColor.withOpacity(0.8),
+                            fontSize: 11,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      if (moderationStatus == 'pending')
+                        TranslatableText(
+                          'AI is reviewing your post...',
+                          style: TextStyle(
+                            color: statusColor.withOpacity(0.8),
+                            fontSize: 11,
+                          ),
+                        ),
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isActive ? Colors.green : Colors.grey,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    isActive ? 'ACTIVE' : 'COMPLETED',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                if (riskScore != 'unknown' && riskScore != 'low')
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: riskScore == 'high' ? Colors.red : Colors.orange,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildInfoRow(Icons.description, contribution['description']),
-                const SizedBox(height: 8),
-                _buildInfoRow(Icons.numbers, '${contribution['quantity']} items'),
-                const SizedBox(height: 8),
-                _buildInfoRow(Icons.location_on, contribution['location']),
-                const SizedBox(height: 8),
-                _buildInfoRow(
-                  Icons.calendar_today,
-                  '${DateFormat('MMM dd').format(startDate)} - ${DateFormat('MMM dd, yyyy').format(endDate)}',
-                ),
-                const SizedBox(height: 8),
-                _buildInfoRow(
-                  Icons.access_time,
-                  '${contribution['startTime']} - ${contribution['endTime']}',
-                ),
-                
-                if (contribution['contact'] != null && contribution['contact'].isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  _buildInfoRow(Icons.phone, contribution['contact']),
-                ],
-                
-                if ((contribution['tags'] as List).isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: (contribution['tags'] as List).map((tag) {
-                      return Chip(
-                        label: Text(tag, style: const TextStyle(fontSize: 12)),
-                        backgroundColor: Colors.blue[50],
-                        padding: const EdgeInsets.all(4),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          
-          if (isActive)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _markAsCompleted(contribution['id']),
-                      icon: const Icon(Icons.check_circle, size: 18),
-                      label: const Text('Mark Complete'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.green,
+                    child: TranslatableText(
+                      riskScore.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _deleteContribution(contribution['id']),
-                      icon: const Icon(Icons.delete, size: 18),
-                      label: const Text('Delete'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
-                      ),
-                    ),
-                  ),
-                ],
+              ],
+            ),
+          ),
+        
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildInfoRow(Icons.description, contribution['description']),
+              const SizedBox(height: 8),
+              _buildInfoRow(Icons.numbers, '${contribution['quantity']} items'),
+              const SizedBox(height: 8),
+              _buildInfoRow(Icons.location_on, contribution['location']),
+              const SizedBox(height: 8),
+              _buildInfoRow(
+                Icons.calendar_today,
+                '${DateFormat('MMM dd').format(startDate)} - ${DateFormat('MMM dd, yyyy').format(endDate)}',
               ),
+              const SizedBox(height: 8),
+              _buildInfoRow(
+                Icons.access_time,
+                '${contribution['startTime']} - ${contribution['endTime']}',
+              ),
+              
+              // FIXED: Better contact display with proper null checking
+              if (hasContact) ...[
+                const SizedBox(height: 8),
+                _buildInfoRow(Icons.phone, contact),
+              ],
+              
+              if ((contribution['tags'] as List).isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: (contribution['tags'] as List).map((tag) {
+                    return Chip(
+                      label: TranslatableText(tag, style: const TextStyle(fontSize: 12)),
+                      backgroundColor: Colors.blue[50],
+                      padding: const EdgeInsets.all(4),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ],
+          ),
+        ),
+        
+        if (isActive)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _markAsCompleted(contribution['id']),
+                    icon: const Icon(Icons.check_circle, size: 18),
+                    label: const TranslatableText('Mark Complete'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.green,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _deleteContribution(contribution['id']),
+                    icon: const Icon(Icons.delete, size: 18),
+                    label: const TranslatableText('Delete'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                    ),
+                  ),
+                ),
+              ],
             ),
-        ],
-      ),
-    );
-  }
+          ),
+      ],
+    ),
+  );
+}
 
   Widget _buildInfoRow(IconData icon, String text) {
     return Row(
@@ -1149,7 +1396,7 @@ Widget _buildImageUpload() {
         Icon(icon, size: 18, color: Colors.grey[600]),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
+          child: TranslatableText(
             text,
             style: const TextStyle(fontSize: 14),
           ),
@@ -1161,9 +1408,14 @@ Widget _buildImageUpload() {
   Widget _buildToggleButton(String label, int index, IconData icon) {
     final isSelected = _currentView == index;
     return ElevatedButton.icon(
-      onPressed: () => setState(() => _currentView = index),
+      onPressed: () {
+        setState(() => _currentView = index);
+        if (index == 1) {
+          _syncModerationStatus(); // Sync when viewing contributions
+        }
+      },
       icon: Icon(icon, size: 20),
-      label: Text(label, style: const TextStyle(fontSize: 14)),
+      label: TranslatableText(label, style: const TextStyle(fontSize: 14)),
       style: ElevatedButton.styleFrom(
         backgroundColor: isSelected ? Theme.of(context).primaryColor : Colors.grey[300],
         foregroundColor: isSelected ? Colors.white : Colors.black87,
