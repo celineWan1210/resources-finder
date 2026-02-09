@@ -112,6 +112,18 @@ class _CommunityScreenState extends State<CommunityScreen> {
     'volunteer': true,
   };
 
+  // Helper method to get primary category from a resource
+  String _getPrimaryCategory(CommunityResource resource) {
+    String primaryCategory = resource.type.toLowerCase();
+
+    // If type is 'community', extract from categories array
+    if (primaryCategory == 'community' && resource.categories.isNotEmpty) {
+      primaryCategory = resource.categories[0].toLowerCase();
+    }
+
+    return primaryCategory;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -160,15 +172,15 @@ class _CommunityScreenState extends State<CommunityScreen> {
       case 'food':
         return Colors.orange;
       case 'shelter':
-        return const Color.fromARGB(175, 233, 30, 98);
+        return const Color(0xFFD81B60);
       case 'clothes':
         return Colors.purple;
       case 'hygiene':
-        return Colors.teal;
+        return Colors.lightBlue;
       case 'transport':
-        return Colors.green;
+        return Colors.lightGreen;
       case 'supplies':
-        return Colors.red;
+        return const Color(0xFFD50000);
       case 'volunteer':
         return Colors.indigo;
       default:
@@ -195,6 +207,9 @@ class _CommunityScreenState extends State<CommunityScreen> {
     _markers.clear();
     
     for (var resource in resources) {
+      // Determine the primary category for color
+      String primaryCategory = _getPrimaryCategory(resource);
+
       final marker = Marker(
         markerId: MarkerId(resource.id),
         position: LatLng(resource.lat, resource.lng),
@@ -203,7 +218,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
           snippet: _formatDistance(resource.distance),
         ),
         icon: BitmapDescriptor.defaultMarkerWithHue(
-          _getMarkerHue(resource.type),
+          _getMarkerHue(primaryCategory),
         ),
         onTap: () => _showResourceDetails(resource),
       );
@@ -219,7 +234,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
   }
 
   double _getMarkerHue(String type) {
-    switch (type) {
+    switch (type.toLowerCase()) {
       case 'food':
         return BitmapDescriptor.hueOrange;
       case 'shelter':
@@ -270,6 +285,8 @@ class _CommunityScreenState extends State<CommunityScreen> {
   }
 
   void _showResourceDetails(CommunityResource resource) {
+  String primaryCategory = _getPrimaryCategory(resource);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -309,12 +326,12 @@ class _CommunityScreenState extends State<CommunityScreen> {
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: _getColorForType(resource.type).withOpacity(0.2),
+                                color: _getColorForType(primaryCategory).withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(
-                                _getIconForType(resource.type),
-                                color: _getColorForType(resource.type),
+                                _getIconForType(primaryCategory),
+                                color: _getColorForType(primaryCategory),
                                 size: 32,
                               ),
                             ),
@@ -324,10 +341,10 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   TranslatableText(
-                                    resource.type.toUpperCase(),
+                                    primaryCategory.toUpperCase(),
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: _getColorForType(resource.type),
+                                      color: _getColorForType(primaryCategory),
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -405,7 +422,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: _getColorForType(resource.type).withOpacity(0.1),
+                            color: _getColorForType(primaryCategory).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: TranslatableText(
@@ -476,7 +493,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                               return Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: _getColorForType(resource.type).withOpacity(0.2),
+                                  color: _getColorForType(primaryCategory).withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: TranslatableText(
@@ -508,7 +525,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                 label: const TranslatableText('Show on Map'),
                                 style: ElevatedButton.styleFrom(
                                   padding: const EdgeInsets.all(16),
-                                  backgroundColor: _getColorForType(resource.type),
+                                  backgroundColor: _getColorForType(primaryCategory),
                                 ),
                               ),
                             ),
@@ -520,7 +537,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                 label: const TranslatableText('Directions'),
                                 style: ElevatedButton.styleFrom(
                                   padding: const EdgeInsets.all(16),
-                                  backgroundColor: Colors.blue,
+                                  backgroundColor: _getColorForType(primaryCategory),
                                 ),
                               ),
                             ),
@@ -1080,13 +1097,15 @@ class _CommunityScreenState extends State<CommunityScreen> {
                       itemCount: resources.length,
                       itemBuilder: (context, index) {
                         final resource = resources[index];
+                        final primaryCategory = _getPrimaryCategory(resource);
+
                         return Card(
                           margin: const EdgeInsets.only(bottom: 12),
                           elevation: 2,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                             side: BorderSide(
-                              color: _getColorForType(resource.type).withOpacity(0.3),
+                              color: _getColorForType(primaryCategory).withOpacity(0.3),
                               width: 2,
                             ),
                           ),
@@ -1106,12 +1125,12 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                       Container(
                                         padding: const EdgeInsets.all(10),
                                         decoration: BoxDecoration(
-                                          color: _getColorForType(resource.type).withOpacity(0.2),
+                                          color: _getColorForType(primaryCategory).withOpacity(0.2),
                                           borderRadius: BorderRadius.circular(12),
                                         ),
                                         child: Icon(
-                                          _getIconForType(resource.type),
-                                          color: _getColorForType(resource.type),
+                                          _getIconForType(primaryCategory),
+                                          color: _getColorForType(primaryCategory),
                                           size: 24,
                                         ),
                                       ),
@@ -1121,10 +1140,10 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
                                             TranslatableText(
-                                              resource.type.toUpperCase(),
+                                              primaryCategory.toUpperCase(),
                                               style: TextStyle(
                                                 fontSize: 11,
-                                                color: _getColorForType(resource.type),
+                                                color: _getColorForType(primaryCategory),
                                                 fontWeight: FontWeight.bold,
                                                 letterSpacing: 0.5,
                                               ),
@@ -1235,14 +1254,14 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                         return Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                           decoration: BoxDecoration(
-                                            color: _getColorForType(resource.type).withOpacity(0.15),
+                                            color: _getColorForType(primaryCategory).withOpacity(0.15),
                                             borderRadius: BorderRadius.circular(12),
                                           ),
                                           child: TranslatableText(
                                             tag,
                                             style: TextStyle(
                                               fontSize: 11,
-                                              color: _getColorForType(resource.type),
+                                              color: _getColorForType(primaryCategory),
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
