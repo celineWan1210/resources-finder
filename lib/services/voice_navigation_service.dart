@@ -407,7 +407,7 @@ User said: ''';
                 ? "${(distanceKm * 1000).round()} meters" 
                 : "${distanceKm.toStringAsFixed(1)} kilometers";
             
-            responseMessage += " The nearest is ${nearest['name']}, ${distanceText} away.";
+            responseMessage += " The nearest is ${nearest['name']}, $distanceText away.";
           }
         } else {
           responseMessage = "No food banks found nearby.";
@@ -456,7 +456,7 @@ User said: ''';
                 ? "${(distanceKm * 1000).round()} meters" 
                 : "${distanceKm.toStringAsFixed(1)} kilometers";
             
-            responseMessage += " The nearest is ${nearest['name']}, ${distanceText} away.";
+            responseMessage += " The nearest is ${nearest['name']}, $distanceText away.";
           }
         } else {
           responseMessage = "No shelters found nearby.";
