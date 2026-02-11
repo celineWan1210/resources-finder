@@ -65,6 +65,7 @@ class ModerationService {
         await _incrementUserWarning(
           contributionData['userId'],
           riskScore,
+          contributionData['userEmail'], // Pass email to store in users collection
         );
       }
 
@@ -227,9 +228,9 @@ Response format (valid JSON only, no extra text):
           }
         }
         
-        // Handle 503 (overloaded) - retry
+        // Handle 503 Service Unavailable (rate limits, overload)
         if (response.statusCode == 503 && attempt < maxRetries - 1) {
-          print('⏳ Gemini overloaded, retrying in ${delay.inSeconds}s... (${attempt + 1}/$maxRetries)');
+          print('⏳ API overloaded (503), retrying in ${delay.inSeconds}s... (attempt ${attempt + 1}/$maxRetries)');
           await Future.delayed(delay);
           delay *= 2; // Exponential backoff
           continue;
@@ -239,9 +240,9 @@ Response format (valid JSON only, no extra text):
         
       } catch (e) {
         if (attempt == maxRetries - 1) {
-          rethrow;
+          rethrow; // Last attempt failed
         }
-        print('⏳ Error on attempt ${attempt + 1}, retrying: $e');
+        print('⏳ Request failed, retrying in ${delay.inSeconds}s... (attempt ${attempt + 1}/$maxRetries)');
         await Future.delayed(delay);
         delay *= 2;
       }
@@ -250,21 +251,19 @@ Response format (valid JSON only, no extra text):
     throw Exception('Max retries reached');
   }
 
-static Future<void> moderateRequest(String requestId, Map<String, dynamic> requestData) async {
+  /// Moderate help request (similar to contribution)
+  static Future<void> moderateHelpRequest(String requestId, Map<String, dynamic> requestData) async {
   try {
-    print('🔍 Starting moderation for request: $requestId');
+    print('🔍 Starting moderation for help request: $requestId');
     
-    // Step 1: Call Gemini API with retry logic
-    final moderationResult = await _analyzeRequestWithGemini(requestData);
+    final moderationResult = await _analyzeHelpRequestWithGemini(requestData);
     
-    // Step 2: Determine status
     final isSafe = moderationResult['safe'] == true;
     final riskScore = moderationResult['riskScore'] ?? 'medium';
     
-    // Step 3: Update request and create log in a batch
     final batch = _firestore.batch();
     
-    // Update request
+    // Update help request
     batch.update(
       _firestore.collection('help_requests').doc(requestId),
       {
@@ -281,37 +280,35 @@ static Future<void> moderateRequest(String requestId, Map<String, dynamic> reque
     batch.set(
       _firestore.collection('moderationLogs').doc(),
       {
-        'requestId': requestId,
+        'helpRequestId': requestId,
         'userId': requestData['userId'] ?? 'anonymous',
         'userEmail': requestData['userEmail'] ?? 'not_provided',
-        'type': 'help_request',
         'categories': requestData['categories'] ?? [],
-        'remarks': requestData['remarks'] ?? '',
+        'quantity': requestData['quantity'] ?? 'N/A',
         'location': requestData['location'] ?? 'not_provided',
         'contact': requestData['contact'] ?? 'not_provided',
+        'remarks': requestData['remarks'] ?? '',
         'moderationResult': moderationResult,
         'timestamp': FieldValue.serverTimestamp(),
         'reviewedByHuman': false,
       },
     );
     
-    // Commit batch
     await batch.commit();
     
-    print(isSafe ? '✅ REQUEST APPROVED automatically' : '⚠️ REQUEST FLAGGED: ${moderationResult['reason']}');
+    print(isSafe ? '✅ APPROVED automatically' : '⚠️ FLAGGED: ${moderationResult['reason']}');
     
-    // Step 4: Handle user warnings (separate transaction)
     if (!isSafe) {
       await _incrementUserWarning(
         requestData['userId'],
         riskScore,
+        requestData['userEmail'],
       );
     }
 
   } catch (e) {
-    print('❌ Request moderation error: $e');
+    print('❌ Moderation error: $e');
     
-    // Mark as error
     try {
       await _firestore.collection('help_requests').doc(requestId).update({
         'moderationStatus': 'error',
@@ -323,9 +320,7 @@ static Future<void> moderateRequest(String requestId, Map<String, dynamic> reque
   }
 }
 
-
-  /// Analyze help request with Gemini
-static Future<Map<String, dynamic>> _analyzeRequestWithGemini(Map<String, dynamic> request) async {
+static Future<Map<String, dynamic>> _analyzeHelpRequestWithGemini(Map<String, dynamic> request) async {
   final contact = request['contact'] ?? '';
   final hasContact = contact.isNotEmpty;
   final remarks = request['remarks'] ?? '';
@@ -471,8 +466,8 @@ Response format (valid JSON only, no extra text):
   throw Exception('Max retries reached');
 }
 
-  /// Increment user warning count
-  static Future<void> _incrementUserWarning(String? userId, String riskScore) async {
+  /// Increment user warning count with violation period tracking
+  static Future<void> _incrementUserWarning(String? userId, String riskScore, String? userEmail) async {
     if (userId == null || userId.isEmpty || userId == 'anonymous') {
       return;
     }
@@ -487,26 +482,48 @@ Response format (valid JSON only, no extra text):
         final userDoc = await transaction.get(userRef);
         
         if (!userDoc.exists) {
-          // Create new user record
+          // Create new user record with first violation period
           transaction.set(userRef, {
             'warningCount': warningIncrement,
             'blacklisted': false,
             'lastWarningAt': FieldValue.serverTimestamp(),
+            'email': userEmail ?? 'No email',
+            'currentViolationPeriod': 1, // Track which violation period
+            'totalBlacklistCount': 0, // How many times blacklisted in total
           });
         } else {
           final currentWarnings = userDoc.data()?['warningCount'] ?? 0;
+          final wasUnblocked = userDoc.data()?['unblocked'] == true;
+          final currentPeriod = userDoc.data()?['currentViolationPeriod'] ?? 1;
+          final totalBlacklists = userDoc.data()?['totalBlacklistCount'] ?? 0;
           final newWarningCount = currentWarnings + warningIncrement;
-          final shouldBlacklist = newWarningCount >= 3;
           
-          transaction.update(userRef, {
+          // FIXED: Stricter threshold for previously unblocked users
+          // Normal users: blacklist at 3 warnings
+          // Previously unblocked users: blacklist at 2 warnings (one strike policy)
+          final blacklistThreshold = wasUnblocked ? 2 : 3;
+          final shouldBlacklist = newWarningCount >= blacklistThreshold;
+          
+          Map<String, dynamic> updateData = {
             'warningCount': newWarningCount,
             'blacklisted': shouldBlacklist,
             'lastWarningAt': FieldValue.serverTimestamp(),
-          });
-
+            'email': userEmail ?? userDoc.data()?['email'] ?? 'No email',
+          };
+          
           if (shouldBlacklist) {
-            print('🚫 User $userId BLACKLISTED ($newWarningCount warnings)');
+            // When blacklisting, increment total blacklist count
+            updateData['blacklistedAt'] = FieldValue.serverTimestamp();
+            updateData['totalBlacklistCount'] = totalBlacklists + 1;
+            updateData['currentViolationPeriod'] = currentPeriod;
+            
+            final reason = wasUnblocked 
+                ? '🚫 User $userId RE-BLACKLISTED ($newWarningCount warnings - period $currentPeriod - total blacklists: ${totalBlacklists + 1})'
+                : '🚫 User $userId BLACKLISTED ($newWarningCount warnings - period $currentPeriod)';
+            print(reason);
           }
+          
+          transaction.update(userRef, updateData);
         }
       });
     } catch (e) {
@@ -535,5 +552,10 @@ Response format (valid JSON only, no extra text):
       print('Error getting warning count: $e');
       return 0;
     }
+  }
+
+  /// Alias for moderateHelpRequest - for backward compatibility
+  static Future<void> moderateRequest(String requestId, Map<String, dynamic> requestData) async {
+    return moderateHelpRequest(requestId, requestData);
   }
 }
