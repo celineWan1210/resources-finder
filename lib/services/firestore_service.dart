@@ -54,8 +54,104 @@ class FirestoreService {
     });
   }
 
-  /// Delete a contribution
+  /// Delete a contribution and adjust user warnings
   Future<void> deleteContribution(String docId) async {
-    await _db.collection('contributions').doc(docId).delete();
+    try {
+      // Get the contribution data before deleting
+      final doc = await _db.collection('contributions').doc(docId).get();
+      
+      if (!doc.exists) return;
+      
+      final data = doc.data();
+      final userId = data?['userId'];
+      final moderationStatus = data?['moderationStatus'];
+      final riskScore = data?['riskScore'];
+      
+      // Delete the contribution
+      await _db.collection('contributions').doc(docId).delete();
+      
+      // If this was a violation (flagged/rejected/approved with risk), reduce warnings
+      if (userId != null && 
+          userId != 'anonymous' && 
+          riskScore != null &&
+          (moderationStatus == 'flagged' || moderationStatus == 'rejected' || moderationStatus == 'approved')) {
+        
+        await _decrementUserWarnings(userId, riskScore);
+      }
+    } catch (e) {
+      print('Error deleting contribution: $e');
+      rethrow;
+    }
+  }
+
+  /// Delete a help request and adjust user warnings
+  Future<void> deleteHelpRequest(String docId) async {
+    try {
+      // Get the help request data before deleting
+      final doc = await _db.collection('help_requests').doc(docId).get();
+      
+      if (!doc.exists) return;
+      
+      final data = doc.data();
+      final userId = data?['userId'];
+      final moderationStatus = data?['moderationStatus'];
+      final riskScore = data?['riskScore'];
+      
+      // Delete the help request
+      await _db.collection('help_requests').doc(docId).delete();
+      
+      // If this was a violation, reduce warnings
+      if (userId != null && 
+          userId != 'anonymous' && 
+          riskScore != null &&
+          (moderationStatus == 'flagged' || moderationStatus == 'rejected' || moderationStatus == 'approved')) {
+        
+        await _decrementUserWarnings(userId, riskScore);
+      }
+    } catch (e) {
+      print('Error deleting help request: $e');
+      rethrow;
+    }
+  }
+
+  /// Decrement user warning count when a violation is deleted
+  Future<void> _decrementUserWarnings(String userId, String riskScore) async {
+    try {
+      final userRef = _db.collection('users').doc(userId);
+      
+      // HIGH risk gave 2 warnings, MEDIUM/LOW gave 1 warning
+      final warningDecrement = riskScore == 'high' ? 2 : 1;
+      
+      await _db.runTransaction((transaction) async {
+        final userDoc = await transaction.get(userRef);
+        
+        if (!userDoc.exists) return;
+        
+        final currentWarnings = userDoc.data()?['warningCount'] ?? 0;
+        final isBlacklisted = userDoc.data()?['blacklisted'] == true;
+        
+        // Calculate new warning count (don't go below 0)
+        final newWarningCount = (currentWarnings - warningDecrement).clamp(0, double.infinity).toInt();
+        
+        Map<String, dynamic> updateData = {
+          'warningCount': newWarningCount,
+        };
+        
+        // If they were blacklisted but now have less than 3 warnings, unblacklist them
+        if (isBlacklisted && newWarningCount < 3) {
+          updateData['blacklisted'] = false;
+          updateData['autoUnblackedAt'] = FieldValue.serverTimestamp();
+          updateData['autoUnblackedReason'] = 'Violation deleted - warnings reduced below threshold';
+          print('✅ User $userId auto-unblacklisted (warnings reduced to $newWarningCount)');
+        }
+        
+        transaction.update(userRef, updateData);
+        
+        print('📉 User $userId warnings reduced by $warningDecrement (${currentWarnings} → $newWarningCount)');
+      });
+    } catch (e) {
+      print('⚠️ Failed to decrement user warnings: $e');
+      // Don't throw - this shouldn't block the deletion
+    }
   }
 }
