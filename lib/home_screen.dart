@@ -8,9 +8,29 @@ import 'request_help_screen.dart';
 import 'widgets/translatable_text.dart';
 import 'widgets/language_toggle.dart';
 import 'widgets/voice_navigation_button.dart';
+import 'widgets/tester_consent_dialog.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _maybeShowTesterConsent();
+  }
+
+  Future<void> _maybeShowTesterConsent() async {
+    // Short delay so the home screen finishes rendering first
+    await Future.delayed(const Duration(milliseconds: 600));
+    if (mounted) {
+      await TesterConsentDialog.showIfNeeded(context);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

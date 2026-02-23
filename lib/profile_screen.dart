@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math';
 import 'widgets/translatable_text.dart';
+import 'services/tester_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -26,12 +27,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadUserData() async {
     try {
       if (user != null) {
-        // Load additional user data from Firestore if you have it
         final doc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user!.uid)
             .get();
-        
+
         if (doc.exists) {
           setState(() {
             userData = doc.data();
@@ -48,6 +48,98 @@ class _ProfileScreenState extends State<ProfileScreen> {
         isLoading = false;
       });
     }
+  }
+
+  // ── Future Improvements Dialog ───────────────────────────────────────────────
+
+  void _showFutureImprovementsDialog() {
+    final TextEditingController suggestionController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: const [
+            Icon(Icons.lightbulb_outline, color: Colors.amber),
+            SizedBox(width: 12),
+            TranslatableText('Future Improvements'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const TranslatableText(
+              'We\'d love to hear your ideas! What features or improvements would you like to see in the app?',
+              style: TextStyle(fontSize: 14, color: Colors.black87),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: suggestionController,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText: 'Share your suggestions here...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.blue),
+                ),
+                filled: true,
+                fillColor: Colors.grey[50],
+                contentPadding: const EdgeInsets.all(12),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: TranslatableText(
+              'Cancel',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              final suggestion = suggestionController.text.trim();
+              Navigator.pop(context);
+
+              final saved = await TesterService().saveCompletionFeedback(
+                suggestion: suggestion.isEmpty ? null : suggestion,
+              );
+
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: TranslatableText(
+                      saved
+                          ? '🙏 Thank you for your feedback!'
+                          : 'Feedback already submitted — thank you!',
+                    ),
+                    backgroundColor: saved ? Colors.green : Colors.orange,
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.send, size: 18),
+            label: const TranslatableText('Submit'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue[600],
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -100,7 +192,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                 )
                               : TranslatableText(
-                                  user?.displayName?.substring(0, 1).toUpperCase() ?? 'U',
+                                  user?.displayName
+                                          ?.substring(0, 1)
+                                          .toUpperCase() ??
+                                      'U',
                                   style: const TextStyle(
                                     fontSize: 48,
                                     fontWeight: FontWeight.bold,
@@ -149,7 +244,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           icon: Icons.verified_user,
                           title: 'Email Verified',
                           value: user?.emailVerified == true ? 'Yes' : 'No',
-                          color: user?.emailVerified == true ? Colors.green : Colors.orange,
+                          color: user?.emailVerified == true
+                              ? Colors.green
+                              : Colors.orange,
                         ),
                         const SizedBox(height: 12),
                         _buildInfoCard(
@@ -158,7 +255,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           value: _formatDate(user?.metadata.creationTime),
                           color: Colors.purple,
                         ),
-                        
+
+                        const SizedBox(height: 24),
+                        _buildSectionTitle('Tester Dashboard'),
+                        const SizedBox(height: 12),
+                        _buildTesterDashboard(),
+
                         const SizedBox(height: 24),
                         _buildSectionTitle('Statistics'),
                         const SizedBox(height: 12),
@@ -168,12 +270,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: _buildStatCard(
                               icon: Icons.volunteer_activism,
                               title: 'Contributions',
-                              value: userData?['contributionCount']?.toString() ?? '0',
+                              value: userData?['contributionCount']
+                                      ?.toString() ??
+                                  '0',
                               color: Colors.green,
                             ),
                           ),
                         ),
-                        
+
                         const SizedBox(height: 24),
                         _buildSectionTitle('Actions'),
                         const SizedBox(height: 12),
@@ -195,7 +299,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           subtitle: 'Update your profile information',
                           onTap: () {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: TranslatableText('Edit profile feature coming soon!')),
+                              const SnackBar(
+                                  content: TranslatableText(
+                                      'Edit profile feature coming soon!')),
                             );
                           },
                         ),
@@ -207,7 +313,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           subtitle: 'Manage your preferences',
                           onTap: () {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: TranslatableText('Settings feature coming soon!')),
+                              const SnackBar(
+                                  content: TranslatableText(
+                                      'Settings feature coming soon!')),
                             );
                           },
                         ),
@@ -219,7 +327,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           subtitle: 'Get help with the app',
                           onTap: () {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: TranslatableText('Help & Support feature coming soon!')),
+                              const SnackBar(
+                                  content: TranslatableText(
+                                      'Help & Support feature coming soon!')),
                             );
                           },
                         ),
@@ -235,14 +345,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               context: context,
                               builder: (context) => AlertDialog(
                                 title: const TranslatableText('Logout'),
-                                content: const TranslatableText('Are you sure you want to logout?'),
+                                content: const TranslatableText(
+                                    'Are you sure you want to logout?'),
                                 actions: [
                                   TextButton(
-                                    onPressed: () => Navigator.pop(context, false),
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
                                     child: const TranslatableText('Cancel'),
                                   ),
                                   ElevatedButton(
-                                    onPressed: () => Navigator.pop(context, true),
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.red,
                                     ),
@@ -251,11 +364,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ],
                               ),
                             );
-                            
+
                             if (confirm == true && context.mounted) {
                               await FirebaseAuth.instance.signOut();
                               if (context.mounted) {
-                                Navigator.pushReplacementNamed(context, '/login');
+                                Navigator.pushReplacementNamed(
+                                    context, '/login');
                               }
                             }
                           },
@@ -266,6 +380,217 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildTesterDashboard() {
+    return FutureBuilder<bool>(
+      future: TesterService().isTester(),
+      builder: (context, snapshot) {
+        final isTester = snapshot.data ?? false;
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const TranslatableText(
+                    'Tester Status',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color:
+                          isTester ? Colors.green[50] : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                          color: isTester
+                              ? Colors.green[200]!
+                              : Colors.grey[300]!),
+                    ),
+                    child: TranslatableText(
+                      isTester ? 'Active Tester' : 'Not a Tester',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isTester
+                            ? Colors.green[700]
+                            : Colors.grey[600],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (isTester) ...[
+                const SizedBox(height: 16),
+                const TranslatableText(
+                  'Feature Testing Progress',
+                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+                const SizedBox(height: 8),
+                FutureBuilder<List<String>>(
+                  future: TesterService().answeredFeatureKeys(),
+                  builder: (context, answeredSnapshot) {
+                    final answered = answeredSnapshot.data ?? [];
+                    final mapVariants = [
+                      'food_bank_map',
+                      'shelter_map',
+                      'resource_map'
+                    ];
+                    final mapDone =
+                        answered.any((k) => mapVariants.contains(k));
+
+                    final coreFeatures = [
+                      'community_contribution',
+                      'help_request',
+                      'language_change',
+                    ];
+
+                    int completedCount = (mapDone ? 1 : 0) +
+                        coreFeatures
+                            .where((f) => answered.contains(f))
+                            .length;
+                    double progress = completedCount / 4;
+                    final allDone = completedCount == 4;
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: LinearProgressIndicator(
+                            value: progress,
+                            backgroundColor: Colors.grey[200],
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              allDone ? Colors.green[400]! : Colors.blue[400]!,
+                            ),
+                            minHeight: 8,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildFeatureStatusItem(
+                            'Maps (Food/Shelter/All)', mapDone),
+                        _buildFeatureStatusItem('Community Contribution',
+                            answered.contains('community_contribution')),
+                        _buildFeatureStatusItem('Help Request',
+                            answered.contains('help_request')),
+                        _buildFeatureStatusItem('Language Change',
+                            answered.contains('language_change')),
+                        const SizedBox(height: 16),
+
+                        // ── Future Improvements Button ──────────────────────
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: allDone
+                                ? _showFutureImprovementsDialog
+                                : null,
+                            icon: const Icon(Icons.lightbulb_outline, size: 18),
+                            label: TranslatableText(
+                              allDone
+                                  ? '💡 Share Future Improvements'
+                                  : 'Complete all features to unlock',
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: allDone
+                                  ? Colors.amber[600]
+                                  : Colors.grey[300],
+                              foregroundColor: allDone
+                                  ? Colors.white
+                                  : Colors.grey[500],
+                              disabledBackgroundColor: Colors.grey[200],
+                              disabledForegroundColor: Colors.grey[400],
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+
+                        if (!allDone) ...[
+                          const SizedBox(height: 6),
+                          Center(
+                            child: TranslatableText(
+                              '$completedCount / 4 features completed',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    );
+                  },
+                ),
+              ],
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  onPressed: () async {
+                    await TesterService().resetTesterStatus();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: TranslatableText(
+                                'Tester status reset. Restart app to see consent modal.')),
+                      );
+                      setState(() {});
+                    }
+                  },
+                  icon: const Icon(Icons.refresh, size: 16),
+                  label: const TranslatableText('Reset Tester Status'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.grey[600],
+                    textStyle: const TextStyle(fontSize: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFeatureStatusItem(String label, bool isDone) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Icon(
+            isDone ? Icons.check_circle : Icons.radio_button_unchecked,
+            size: 14,
+            color: isDone ? Colors.green : Colors.grey[400],
+          ),
+          const SizedBox(width: 8),
+          TranslatableText(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDone ? Colors.black87 : Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -385,7 +710,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required VoidCallback onTap,
   }) {
     final buttonColor = color ?? Colors.blue;
-    
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -548,15 +873,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _requestVerificationCode(BuildContext context, User user) async {
-    // Generate verification code immediately
     String code = _generateVerificationCode();
-    
-    // Show the code dialog right away
     _showCodeGeneratedDialog(context, code);
-    
-    // Save to Firestore in the background (non-blocking)
+
     try {
-      await FirebaseFirestore.instance.collection('moderatorCodes').doc(code).set({
+      await FirebaseFirestore.instance
+          .collection('moderatorCodes')
+          .doc(code)
+          .set({
         'email': user.email,
         'code': code,
         'used': false,
@@ -567,20 +891,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
     } catch (e) {
       print('Error saving code to Firestore: $e');
-      // Don't show error to user since they already have the code
     }
   }
 
-  // Generate verification code - 8 characters
   String _generateVerificationCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final random = Random();
     String code = '';
-    
     for (int i = 0; i < 8; i++) {
       code += chars[random.nextInt(chars.length)];
     }
-    
     return code;
   }
 

@@ -11,6 +11,7 @@ import 'services/location_service.dart';
 import 'services/moderation_service_no_functions.dart';  
 import 'map_screen.dart';
 import 'widgets/translatable_text.dart';
+import 'widgets/feature_feedback_dialog.dart';
 
 class RequestHelpScreen extends StatefulWidget {
   const RequestHelpScreen({super.key});
@@ -470,6 +471,9 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
         setState(() {
           _currentView = 1;
         });
+
+        // Show tester feedback for Help Request
+        await FeatureFeedbackDialog.showIfTester(context, 'Help Request');
       }
     } catch (e) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();

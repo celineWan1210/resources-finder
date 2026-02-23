@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../services/translation_service.dart';
 import '../services/translation_cache_service.dart';
+import 'feature_feedback_dialog.dart';
 
 class LanguageToggle extends StatefulWidget {
   final bool showLanguageSelector;
@@ -283,6 +284,9 @@ class _LanguageOption extends StatelessWidget {
             duration: const Duration(seconds: 2),
           ),
         );
+
+        // Show tester feedback for Language Change
+        FeatureFeedbackDialog.showIfTester(context, 'Language Change');
       },
     );
   }

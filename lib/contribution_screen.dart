@@ -11,6 +11,7 @@ import 'services/firestore_service.dart';
 import 'services/location_service.dart';
 import 'services/moderation_service_no_functions.dart';
 import 'widgets/translatable_text.dart';
+import 'widgets/feature_feedback_dialog.dart';
 
 
 
@@ -403,6 +404,11 @@ class _ContributionScreenState extends State<ContributionScreen> {
       setState(() {
         _currentView = 1;
       });
+
+      // Show tester feedback for Contribution submission
+      if (mounted) {
+        await FeatureFeedbackDialog.showIfTester(context, 'Community Contribution');
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(

@@ -12,6 +12,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'services/location_service.dart';
 import 'services/location_cache_service.dart'; // ✨ IMPORT YOUR CACHE SERVICE
 import 'widgets/translatable_text.dart';
+import 'widgets/feature_feedback_dialog.dart';
 
 class MapScreen extends StatefulWidget {
   final String locationType; //foodbank or shelter
@@ -137,6 +138,18 @@ class _MapScreenState extends State<MapScreen> {
           _focusOnTargetLocation();
         });
       }
+
+      // Show tester feedback after 4 seconds (gives user time to explore)
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted) {
+          final featureName = widget.locationType == 'foodbank'
+              ? 'Food Bank Map'
+              : widget.locationType == 'shelter'
+                  ? 'Shelter Map'
+                  : 'Resource Map';
+          FeatureFeedbackDialog.showIfTester(context, featureName);
+        }
+      });
     } catch (e) {
       setState(() {
         _statusMessage = 'Error: $e';
