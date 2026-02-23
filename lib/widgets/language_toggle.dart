@@ -56,8 +56,8 @@ class _LanguageToggleState extends State<LanguageToggle> {
             ? Icons.translate 
             : Icons.translate_outlined,
         color: _translationService.showTranslated 
-            ? Colors.blue 
-            : Colors.grey,
+            ? Colors.white
+            : Colors.white,
       ),
       tooltip: 'Translation',
       onSelected: (value) async {  // ← Made async

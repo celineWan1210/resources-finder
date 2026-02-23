@@ -154,13 +154,28 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TranslatableText(
-                    isGuest ? 'Welcome, Guest!' : 'Welcome, ${user.displayName?.split(' ')[0] ?? 'User'}!',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
-                    ),
+                  Row(
+                    children: [
+                      TranslatableText(
+                        isGuest ? 'Welcome, Guest!' : 'Welcome,',
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                      if (!isGuest) ...[
+                        const SizedBox(width: 6),
+                        Text(
+                          '${user.displayName?.split(' ')[0] ?? 'User'}!',
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 6),
                   TranslatableText(
