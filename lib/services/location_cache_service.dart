@@ -119,14 +119,14 @@ class LocationCacheService {
   }) async {
     final keywords = type == 'foodbank'
     ? ['food bank', 'food charity', 'lost food project', 'food aid', 'charity food',
-      'food pantry', 'meal program', 
+      'food pantry', 'meal program',
       'food assistance', 'hunger relief', 'food rescue', 'community kitchen',
       'bank makanan', 'bantuan makanan', 'makanan amal', 'projek makanan',
       'dapur makanan', 'agihan makanan', 'bantuan kelaparan', 'makanan percuma',
       'pusat makanan', 'derma makanan', 'rumah makan amal']
-     : ['homeless shelter', 'shelter', 'emergency housing', 'transit home', 
-        'rumah perlindungan', 'refuge center', 'transitional housing', 
-        'living center', 'living centre', 'gelandangan', 
+     : ['homeless shelter', 'shelter', 'emergency housing', 'transit home',
+        'rumah perlindungan', 'refuge center', 'transitional housing',
+        'living center', 'living centre', 'gelandangan',
         'anjung singgah', 'house of hope',
         'social services organization'];
 
@@ -156,7 +156,15 @@ class LocationCacheService {
             seenPlaceIds.add(placeId);
 
             final name = (place['name'] ?? '').toString().toLowerCase();
-            
+            final excludedKeywords = ['game', 'cafe', "bomb shelter", "sports"];
+
+            //Exclude unwanted words for shelter
+            bool containsExcluded = excludedKeywords.any((k) => name.contains(k));
+            if (containsExcluded) {
+              print('🚫 Excluding: $name (contains unwanted keyword)');
+              continue;
+            }
+
             // Verify keyword match
             bool containsKeyword = keywords.any((k) => name.contains(k.toLowerCase()));
             if (!containsKeyword) {
