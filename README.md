@@ -58,3 +58,82 @@ A dedicated **Moderator Dashboard** provides a critical layer of oversight:
 Designed to be used by anyone, anywhere:
 - **Multilingual Support**: real-time translation for diverse communities.
 - **Voice Commands**: hands-free navigation for elderly, low-literacy, or visually impaired users.
+
+# Overview of Technologies used 
+
+### **📱 Framework & Core Stack**
+- **Flutter**: unified development for Android and iOS using a single codebase, allowing for much faster iteration than native development.
+- **Firebase (Firestore, Auth, Storage)**: powers **all backend data**, real-time sync, secure authentication, and image storage. Compared with traditional SQL backends and custom servers, Firebase provides built-in real-time sync, offline support, and automatic scaling.
+- **Google Maps Platform (SDK & Places API)**: provides high-accuracy discovery and verification of help locations with smooth Flutter integration.
+- **Google Gemini API**: acts as the primary intelligence layer for understanding natural language and moderating community content more reliably than rule-based systems.
+
+### **🤖 Agentic AI Ecosystem: Antigravity**
+- **Developer Backbone**: handles deep codebase analysis, architectural planning, and complex debugging.
+- **System Orchestrator**: ensures all AI features—from moderation to voice navigation—are perfectly integrated and optimized.
+
+### **✨ Intelligence Layer & Safety: Google Gemini**
+- **Safety Moderation**: analyzes community contributions for potential scams or unsafe content in real-time.
+- **Qualitative NLU**: parses natural language voice commands into structured, actionable data that the app can process.
+
+### **🎙️ Hands-Free Interaction (STT/TTS & Gemini)**
+- **Speech-to-Text**: converts spoken user input into actionable commands.
+- **Intent Execution**: Gemini AI interprets the user's intent to determine the correct app action.
+- **Text-to-Speech**: provides real-time spoken feedback on resource discovery and turn-by-turn directions.
+
+### **🌐 Multilingual Inclusion: Google Cloud Translation**
+- **High-Accuracy Triage**: provides instant translation for English, Bahasa Malaysia, and Chinese.
+- **Optimized Performance**: integrates with a localized caching system to provide immediate results and minimize API overhead.
+
+### **✅ Robust Verification**
+- **Multi-Screen Validation**: end-to-end integration is verified across all main screens—*Community, Contribution, and Request Help*—ensuring that moderation, matching, and navigation function reliably in real-world scenarios.
+
+# Implementation Details & Innovation
+
+### **System Architecture**
+Our architecture is built for scalability, reliability, and real-time intelligence:
+
+```mermaid
+graph TD
+    A[Flutter Frontend - Mobile/Web] --> B[Firebase Auth]
+    A --> C[Cloud Firestore]
+    A --> D[Firebase Storage]
+    
+    subgraph AI Ecosystem
+        E[Antigravity - Agentic AI Orchestrator] --> F[Google Gemini API]
+        E --> G[Google Cloud Translation]
+        E --> H[Google STT/TTS]
+    end
+    
+    A <--> E
+    C <--> F
+    
+    subgraph Location Services
+        I[Google Maps SDK]
+        J[Google Places API]
+    end
+    
+    A --- I
+    A --- J
+    
+    subgraph Data Flow
+        K[(Firestore DB)]
+        L[(Local Cache)]
+    end
+    
+    C --- K
+    A --- L
+```
+
+- **Frontend**: A unified Flutter codebase ensures consistent experiences across Android, iOS, and Web.
+- **Backend**: Firebase provides the backbone for all data management, including real-time synchronization and secure storage.
+- **Agentic Layer**: **Antigravity** acts as the intelligent bridge, managing complex interactions between user intent, translation, and moderation.
+- **Location Intelligence**: Google Maps and Places APIs are deeply integrated to provide reliable discovery within a precise 15km radius.
+
+### **User Workflow**
+The journey from needing help to receiving aid is streamlined for maximum speed and safety:
+
+1.  **Discovery**: Users enter the app (via Login or **Guest Mode**) and immediately see a map of verified resources and community markers.
+2.  **Intent Capture**: Using **Voice Commands** or manual search, users specify their needs (e.g., "Find Halal food banks near me").
+3.  **Smart Matching**: The system runs a 15km proximity filter, cross-referencing user requests with live community data and official Google Places.
+4.  **Trust & Safety**: Before a request or contribution goes live, the **AI Moderation (Gemini)** screens for scams. Flagged items move to the **Moderator Dashboard** for human review.
+5.  **Fulfillment**: Once a match is made, users coordinate via provided contact details. The requester marks the item as "Fulfilled," updating the community map in real-time.
