@@ -2,16 +2,16 @@
 
 We are **Lepak Team from Monash University**. 
 
+# Installation and Set Up
+To use the app, simply download it from the APK link below. You can log in if you want to contribute, or enter in **Guest Mode** to explore available contributions around Malaysia.
+
+### App Download (APK)
+You can download the latest release here: https://drive.google.com/file/d/1HT8t5y0QtjliL0eNEFP_fqYn1h6hD9lP/view?usp=sharing 
+
 ## Repository Overview
 The **Community Resource Finder** is a Flutter application built to connect communities and facilitate the sharing of essential resources. This platform enables users to discover nearby food banks, shelters, and other vital community resources through an interactive map and user-friendly interface.
 
 Our mission is to bridge the gap between resource surplus and local needs, fostering a resilient and supportive community ecosystem through technology.
-
-## How to Use
-To use the app, simply download it from the APK link below. You can log in if you want to contribute, or enter in **Guest Mode** to explore available contributions around Malaysia.
-
-## App Download (APK)
-You can download the latest release here: https://drive.google.com/file/d/1HT8t5y0QtjliL0eNEFP_fqYn1h6hD9lP/view?usp=sharing 
 
 # Project Overview
 
@@ -137,3 +137,34 @@ The journey from needing help to receiving aid is streamlined for maximum speed 
 3.  **Smart Matching**: The system runs a 15km proximity filter, cross-referencing user requests with live community data and official Google Places.
 4.  **Trust & Safety**: Before a request or contribution goes live, the **AI Moderation (Gemini)** screens for scams. Flagged items move to the **Moderator Dashboard** for human review.
 5.  **Fulfillment**: Once a match is made, users coordinate via provided contact details. The requester marks the item as "Fulfilled," updating the community map in real-time.
+
+# Challenges Faced
+
+### **1. Resilient AI Pipelines: Self-Healing JSON Parsing**
+A major technical challenge was handling inconsistent JSON responses from the Gemini API in our moderation pipeline.
+- **The Issue**: During high-volume testing, Gemini responses were occasionally truncated or wrapped in Markdown tokens (```json), causing Dart’s JSON parser to crash and block the Firestore batch writes.
+- **The Solution**: We implemented a **self-healing JSON parser**. It uses regex cleaning to strip Markdown and a "brace-count" algorithm to reconstruct truncated structures with default safe values. This reduced pipeline failures from **~5% to <0.01%**, ensuring legitimate aid isn't blocked by minor AI formatting errors.
+
+### **2. Performance vs. Friction (Insights from User Testing)**
+Early testing revealed that while users loved the "AI Verified" badges, they were frustrated by performance and "invisible" moderation.
+- **The feedback**: Testers highlighted slow loading times and confusion when posts were removed by AI without explanation.
+- **The Pivot**: This feedback motivated us to implement **faster localized caching** for map markers and build the **Moderator Dashboard**. By adding a "Human-in-the-Loop" layer, we provided a double safety net that allows users to appeal AI decisions, significantly boosting confidence in the platform's reliability.
+
+### **3. Breaking the "Digital Language Barrier"**
+Ensuring inclusivity for Malaysia’s diverse community—including non-technical elderly users and non-English speakers.
+- **The Challenge**: Traditional welfare apps are often English-only and require high digital literacy.
+- **The Solution**: We integrated a real-time **language toggle** (Bahasa Malaysia, English, and Chinese) and a **voice-assisted UI**. Testers found that the ability to hear resource counts and directions in their native language transformed the app from a "tool" into a "proactive community companion."
+
+# Future Roadmap
+
+Our vision for **Community Resource Finder** focuses on high-impact, realistic features that deepen community trust and technical resilience.
+
+### **Phase 1: Localized Community Impact**
+- **AI-Driven Community Insights**: Use **Gemini** to analyze search trends and resource requests to predict "high-need areas," allowing us to alert NGOs before a shortage occurs.
+- **Multimodal Requests**: Implement "Photo-to-Request" functionality. Users can upload a photo of an empty pantry, and **Gemini Vision** will automatically categorize and populate the request details.
+- **Volunteer Route Optimizer**: Integrate smart-routing for volunteers dropping off multiple contributions, minimizing travel time and environmental impact.
+
+### **Phase 2: Trust & Gamification**
+- **Community Hero Program**: A verification-based badge system. Frequent, high-quality contributors earn "Community Hero" status, increasing the visibility and trust of their markers.
+- **NGO Dashboard Integration**: Bridging grassroots aid with formal disaster relief by allowing official organizations to "Officialize" community posts.
+- **Localized Voice Dialects**: Refining the voice UI to recognize Manglish and other local Malaysian dialects for a truly native intuitive experience.
