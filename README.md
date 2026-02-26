@@ -8,7 +8,16 @@ To use the app, simply download it from the APK link below. You can log in if yo
 ### App Download (APK)
 You can download the latest release here: https://drive.google.com/file/d/1HT8t5y0QtjliL0eNEFP_fqYn1h6hD9lP/view?usp=sharing 
 
-## Repository Overview
+## Moderator Portal
+- **Website**: [https://resource-finder-gray.vercel.app](https://resource-finder-gray.vercel.app)
+- **Access Instructions**:
+  1. Log in to the Community Resource Finder app.
+  2. Go to the **Profile** screen.
+  3. Tap on **Get Moderator Code** under the Actions section.
+  4. Generate and copy the 8-character verification code.
+  5. Enter this code on the moderator website to gain access.
+
+# Repository Overview
 The **Community Resource Finder** is a Flutter application built to connect communities and facilitate the sharing of essential resources. This platform enables users to discover nearby food banks, shelters, and other vital community resources through an interactive map and user-friendly interface.
 
 Our mission is to bridge the gap between resource surplus and local needs, fostering a resilient and supportive community ecosystem through technology.
