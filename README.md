@@ -6,7 +6,7 @@ We are **Lepak Team from Monash University**.
 To use the app, simply download it from the APK link below. You can log in if you want to contribute, or enter in **Guest Mode** to explore available contributions around Malaysia.
 
 ### App Download (APK)
-You can download the latest release here: https://drive.google.com/file/d/1HT8t5y0QtjliL0eNEFP_fqYn1h6hD9lP/view?usp=sharing 
+You can download the latest release here: https://drive.google.com/file/d/1rnZEW2eIVJyxP2rzcPOGi3zBtxgD6p57/view?usp=share_link
 
 ### Moderator Portal
 - **Website**: [https://resource-finder-gray.vercel.app](https://resource-finder-gray.vercel.app)
