@@ -18,7 +18,7 @@ You can download the latest release here: https://drive.google.com/file/d/1CC1dY
   5. Enter this code on the moderator website to gain access.
 
 # Repository Overview
-The **Community Resource Finder** is a Flutter application built to connect communities and facilitate the sharing of essential resources. This platform enables users to discover nearby food banks, shelters, and other vital community resources through an interactive map and user-friendly interface.
+The **Community Resource Finder** is a Flutter application built to connect communities and facilitate the sharing of essential resources. This platform enables users to discover nearby food banks, shelters, and other vital community resources through an interactive map and user-friendly interface while also allow community to provide help to those who are in need.
 
 Our mission is to bridge the gap between resource surplus and local needs, fostering a resilient and supportive community ecosystem through technology.
 
